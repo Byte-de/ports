@@ -159,7 +159,7 @@ struct AccentButton: ButtonStyle {
 
 struct IconButton: View {
     let symbol: String
-    let help: String
+    let help: LocalizedStringResource
     var tint: Color = DS.muted
     var selected = false
     var immediateHelp = false
@@ -171,7 +171,7 @@ struct IconButton: View {
     private var accessibility = PanelAccessibility()
 
     init(
-        symbol: String, help: String, tint: Color = DS.muted, selected: Bool = false,
+        symbol: String, help: LocalizedStringResource, tint: Color = DS.muted, selected: Bool = false,
         immediateHelp: Bool = false, systemForeground: Bool = false, action: @escaping () -> Void
     ) {
         self.symbol = symbol
@@ -198,7 +198,7 @@ struct IconButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PanelIconStyle())
-        .help(immediateHelp ? "" : help).accessibilityLabel(help)
+        .help(immediateHelp ? Text(verbatim: "") : Text(help)).accessibilityLabel(Text(help))
         .focused($focused)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .onHover { hovered = $0 }
@@ -220,7 +220,7 @@ struct IconButton: View {
 /// Alerts stay inside the existing transparent window. Keeping the underlying
 /// view mounted preserves draft form fields when an operation reports an error.
 private struct PanelAlertModifier<Actions: View>: ViewModifier {
-    let title: String
+    let title: LocalizedStringResource
     let message: String?
     let actions: Actions
     func body(content: Content) -> some View {
@@ -239,7 +239,7 @@ private struct PanelAlertModifier<Actions: View>: ViewModifier {
                         .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.line, lineWidth: 0.75))
                         .shadow(color: .black.opacity(0.4), radius: 18, y: 8)
                         .foregroundStyle(DS.text).accessibilityElement(children: .contain)
-                        .accessibilityLabel(title)
+                        .accessibilityLabel(Text(title))
                 }
             }
     }
@@ -247,7 +247,7 @@ private struct PanelAlertModifier<Actions: View>: ViewModifier {
 
 extension View {
     func panelAlert<Actions: View>(
-        title: String, message: String?, @ViewBuilder actions: () -> Actions
+        title: LocalizedStringResource, message: String?, @ViewBuilder actions: () -> Actions
     ) -> some View {
         modifier(PanelAlertModifier(title: title, message: message, actions: actions()))
     }
@@ -261,8 +261,8 @@ private struct PanelIconStyle: ButtonStyle {
 
 struct EmptyState: View {
     let symbol: String
-    let title: String
-    let detail: String
+    let title: LocalizedStringResource
+    let detail: LocalizedStringResource
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: symbol).font(.system(size: 22, weight: .light)).foregroundStyle(DS.muted)

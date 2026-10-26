@@ -31,12 +31,18 @@ public struct AvailableRelease: Sendable, Equatable {
     public let url: URL
 }
 
-public enum ReleaseCheckError: LocalizedError {
+public enum ReleaseCheckError: LocalizedError, Sendable {
     case invalidResponse, unavailable
     public var errorDescription: String? {
         switch self {
-        case .invalidResponse: "Die Update-Antwort konnte nicht geprüft werden. Bitte versuche es später erneut."
-        case .unavailable: "Updates sind gerade nicht erreichbar. Bitte prüfe deine Verbindung und versuche es erneut."
+        case .invalidResponse:
+            String(
+                localized: "The update response could not be verified. Please try again later.",
+                comment: "Update check error when GitHub's answer is malformed or unexpected")
+        case .unavailable:
+            String(
+                localized: "Updates are not reachable right now. Check your connection and try again.",
+                comment: "Update check error when GitHub could not be reached")
         }
     }
 }

@@ -41,6 +41,14 @@ final class PanelWindowCoordinator: NSObject {
 
     func prepareMainWindow() -> Bool { activate(.window) }
 
+    /// Activation can be refused (cooperative activation); ordering front regardless keeps the window visible.
+    func bringMainWindowForward() {
+        guard let window = mainWindow ?? NSApp.windows.first(where: { $0.identifier?.rawValue == "monitor" })
+        else { return }
+        window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
+    }
+
     func menuAppeared(model: MonitorModel) {
         self.model = model
         guard model.onboardingSession == nil else { return }

@@ -14,8 +14,7 @@ extension MonitorModel {
         updateStatus = .checking
         Task {
             do {
-                let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
-                if let release = try await ReleaseChecker().check(currentVersion: version) {
+                if let release = try await ReleaseChecker().check(currentVersion: AppInfo.version) {
                     updateStatus = .available(release)
                 } else {
                     updateStatus = .current

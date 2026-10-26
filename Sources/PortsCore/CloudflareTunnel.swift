@@ -47,12 +47,29 @@ public enum TunnelError: LocalizedError, Sendable {
     case unsupportedServer, unsupportedSystem, serverChanged, missingClient, shuttingDown, couldNotStop
     public var errorDescription: String? {
         switch self {
-        case .unsupportedServer: "Nur laufende lokale HTTP-Dev-Server können geteilt werden."
-        case .unsupportedSystem: "Öffentlich teilen benötigt macOS 15 oder neuer."
-        case .serverChanged: "Der Server oder sein Port ist nicht mehr aktiv. Bitte erneut versuchen."
-        case .missingClient: "Der Cloudflare-Client fehlt im App-Paket. Bitte Byte Ports erneut entpacken oder bauen."
-        case .shuttingDown: "Byte Ports wird gerade beendet."
-        case .couldNotStop: "Die Freigabe wurde noch nicht beendet. Bitte erneut stoppen."
+        case .unsupportedServer:
+            String(
+                localized: "Only running local HTTP development servers can be shared.",
+                comment: "Error when public sharing is requested for anything but a running local HTTP server")
+        case .unsupportedSystem:
+            String(
+                localized: "Public sharing requires macOS 15 or later.",
+                comment: "Error when public sharing is requested on a macOS version that cannot run it")
+        case .serverChanged:
+            String(
+                localized: "The server or its port is no longer active. Please try again.",
+                comment: "Error when the server to share stopped or changed before sharing started")
+        case .missingClient:
+            String(
+                localized:
+                    "The Cloudflare client is missing from this installation. Please download and reinstall the app.",
+                comment: "Error when the bundled Cloudflare client or its launcher is missing or not executable")
+        case .shuttingDown:
+            String(localized: "The app is quitting.", comment: "Error when sharing is started while the app quits")
+        case .couldNotStop:
+            String(
+                localized: "Sharing has not stopped yet. Please stop it again.",
+                comment: "Error when a public share did not end in time after Stop sharing")
         }
     }
 }

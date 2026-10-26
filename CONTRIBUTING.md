@@ -12,6 +12,12 @@ Keep process and tunnel logic in PortsCore. Never act on PID alone: preserve the
 process start identity and owner checks. Tests may stop only processes they
 created. Do not make tests depend on a real user's services or public tunnels.
 
+Localization: write new or changed user-facing text in English in a localizable
+API and add its German translation to `Resources/Localization` in the same
+commit. `Scripts/check.sh` fails on missing translations. See
+[docs/LOCALIZATION.md](docs/LOCALIZATION.md) for the rules, plural templates and
+glossary.
+
 UI changes must preserve one active full panel, keyboard access, quick action
 labels and Reduce Motion/Reduce Transparency behaviour. Motion must remain
 interruptible and shorter than 500 ms. Avoid introducing sheets into the borderless

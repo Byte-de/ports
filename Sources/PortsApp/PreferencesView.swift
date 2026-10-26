@@ -13,10 +13,9 @@ struct PreferencesView: View {
                         settingLabel("Aktualisieren")
                         Spacer()
                         Picker("Intervall", selection: $model.preferences.refreshInterval) {
-                            Text("2 Sekunden").tag(2.0)
-                            Text("3 Sekunden").tag(3.0)
-                            Text("5 Sekunden").tag(5.0)
-                            Text("10 Sekunden").tag(10.0)
+                            ForEach([2, 3, 5, 10], id: \.self) { seconds in
+                                Text("\(seconds) seconds").tag(Double(seconds))
+                            }
                         }.labelsHidden().frame(width: 130).onChange(of: model.preferences.refreshInterval) {
                             model.savePreferences()
                         }
@@ -49,7 +48,8 @@ struct PreferencesView: View {
                         Text("Eigene Agenten")
                         Spacer()
                         if !model.preferences.agentRules.isEmpty {
-                            Text("\(model.preferences.agentRules.count)").monospacedDigit().foregroundStyle(DS.muted)
+                            Text(model.preferences.agentRules.count, format: .number).monospacedDigit()
+                                .foregroundStyle(DS.muted)
                         }
                     }.frame(minHeight: 40).contentShape(Rectangle())
                 }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
@@ -96,10 +96,8 @@ struct PreferencesView: View {
                 }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
                 updateControls
                 HStack {
-                    Text(
-                        "Byte Ports \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")"
-                    )
-                    .font(.system(size: 10)).foregroundStyle(DS.muted)
+                    Text(verbatim: "\(AppInfo.name) \(AppInfo.version)")
+                        .font(.system(size: 10)).foregroundStyle(DS.muted)
                     Spacer()
                     Button("Beenden") { NSApp.terminate(nil) }.buttonStyle(QuietButton())
                 }
@@ -163,13 +161,15 @@ struct PreferencesView: View {
         }
     }
 
-    private func group<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func group<Content: View>(_ title: LocalizedStringResource, @ViewBuilder content: () -> Content)
+        -> some View
+    {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).overline()
             content()
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
-    private func settingLabel(_ title: String, detail: String? = nil) -> some View {
+    private func settingLabel(_ title: LocalizedStringResource, detail: LocalizedStringResource? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.system(size: 12, weight: .medium))
             if let detail {

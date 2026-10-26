@@ -14,8 +14,13 @@ let package = Package(
         .target(name: "ProcessBridge", publicHeadersPath: "include"),
         .executableTarget(name: "TunnelRunner"),
         .target(name: "PortsCore", dependencies: ["ProcessBridge"]),
-        .executableTarget(name: "PortsApp", dependencies: ["PortsCore"]),
+        // UI-free app policy: lists, flows and schedules, tested without AppKit.
+        // It imports only Foundation, Observation, OSLog and PortsCore, never AppKit or
+        // SwiftUI, and returns semantic values, never display text.
+        .target(name: "PortsFeatures", dependencies: ["PortsCore"]),
+        .executableTarget(name: "PortsApp", dependencies: ["PortsCore", "PortsFeatures"]),
         .executableTarget(name: "PortsDiagnostics", dependencies: ["PortsCore"]),
         .testTarget(name: "PortsCoreTests", dependencies: ["PortsCore"]),
+        .testTarget(name: "PortsFeaturesTests", dependencies: ["PortsFeatures"]),
     ]
 )

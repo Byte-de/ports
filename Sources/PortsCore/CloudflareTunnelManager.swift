@@ -203,8 +203,12 @@ public actor CloudflareTunnelManager {
                 if job.record.phase.isActive {
                     job.record.phase = job.stopRequested && job.record.message == nil ? .stopped : .failed
                     if job.record.phase == .failed, job.record.message == nil {
+                        // cloudflared's own error text is shown as is.
                         job.record.message =
-                            log.lastError ?? "Die Cloudflare-Verbindung wurde beendet. Bitte erneut versuchen."
+                            log.lastError
+                            ?? String(
+                                localized: "The Cloudflare connection ended. Please try again.",
+                                comment: "Public share status when the Cloudflare connection process exited")
                     }
                 }
                 job.cleanup()
@@ -214,14 +218,19 @@ public actor CloudflareTunnelManager {
             if now - job.checkedOriginAt >= 1 {
                 job.checkedOriginAt = now
                 if !validateOrigin(job.record.target) {
-                    job.requestStop(message: "Server oder Port beendet. Die Freigabe wurde geschlossen.")
+                    job.requestStop(
+                        message: String(
+                            localized: "The server or port stopped. Sharing was closed.",
+                            comment: "Public share status when the shared server or its port went away"))
                     continue
                 }
             }
             if (!log.wasConnected || log.publicURL == nil) && now >= job.deadline {
                 job.requestStop(
                     message: log.lastError
-                        ?? "Cloudflare antwortet nicht. Bitte Verbindung prüfen und erneut versuchen.")
+                        ?? String(
+                            localized: "Cloudflare is not responding. Check your connection and try again.",
+                            comment: "Public share status when Cloudflare did not connect in time"))
                 continue
             }
             job.record.publicURL = log.publicURL

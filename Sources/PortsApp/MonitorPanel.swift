@@ -1,4 +1,3 @@
-import AppKit
 import PortsCore
 import SwiftUI
 
@@ -18,15 +17,7 @@ struct MonitorWindow: View {
         .background(PanelWindowRegistration(surface: .window, model: model))
         .fixedSize()
         .ignoresSafeArea(.container, edges: .top)
-        .task {
-            model.revealWindow = {
-                guard PanelWindowCoordinator.shared.prepareMainWindow() else { return }
-                openWindow(id: "monitor")
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            model.startMonitoring()
-            PanelWindowCoordinator.shared.configureNotch(model: model)
-        }
+        .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
         .onChange(of: model.onboardingSession) { _, _ in
             PanelWindowCoordinator.shared.configureNotch(model: model)
         }
@@ -74,10 +65,19 @@ struct MonitorPanel: View {
     private var isServiceSection: Bool { [.overview, .agents, .servers].contains(model.section) }
     private var page: PanelPage { PanelPage(section: model.section, mode: model.displayMode) }
     private var isDrilledIn: Bool { model.showingDetails || (model.section == .actions && model.showingLogs) }
-    private var title: String {
-        if model.showingDetails { return model.selected?.title ?? "Prozess beendet" }
-        if model.section == .actions && model.showingLogs { return "Ausgabe" }
-        return model.displayMode == .board && isServiceSection ? "Board" : model.section.title
+    private var title: Text {
+        if model.showingDetails {
+            if let selected = model.selected { return Text(verbatim: selected.title) }
+            return Text("Prozess beendet")
+        }
+        if model.section == .actions && model.showingLogs { return Text("Ausgabe") }
+        return model.displayMode == .board && isServiceSection ? Text("Board") : Text(model.section.title)
+    }
+    /// A failed scan outranks the partial-result warning of the last good one.
+    private var scanWarning: Text? {
+        guard !model.demoMode else { return nil }
+        if let issue = model.detectionIssue { return Text("Detection failed: \(issue)") }
+        return model.snapshot.warning.map { Text(verbatim: $0) }
     }
     private var contentHeight: CGFloat {
         if isDrilledIn { return 316 }
@@ -102,13 +102,13 @@ struct MonitorPanel: View {
         )
         .foregroundStyle(DS.text).preferredColorScheme(.dark)
         .panelAlert(
-            title: "Aktion nicht möglich",
-            message: model.presentationSurface == surface ? model.errorMessage : nil
+            title: model.panelError?.context.title ?? ErrorContext.generic.title,
+            message: model.presentationSurface == surface ? model.panelError?.message : nil
         ) {
             HStack {
                 Spacer()
-                Button("OK") { model.errorMessage = nil }.buttonStyle(AccentButton())
-                    .keyboardShortcut(.defaultAction).onExitCommand { model.errorMessage = nil }
+                Button("OK") { model.panelError = nil }.buttonStyle(AccentButton())
+                    .keyboardShortcut(.defaultAction).onExitCommand { model.panelError = nil }
             }
         }
         .background {
@@ -139,10 +139,14 @@ struct MonitorPanel: View {
                 header
                 if model.demoMode { demoNotice }
                 if showingSearch && !isDrilledIn { searchField }
-                if let warning = model.snapshot.warning, !model.demoMode {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .font(.system(size: 10)).foregroundStyle(DS.orange).lineLimit(2)
-                        .padding(.horizontal, 16).padding(.bottom, 8)
+                if let warning = scanWarning {
+                    Label {
+                        warning
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
+                    }
+                    .font(.system(size: 10)).foregroundStyle(DS.orange).lineLimit(2)
+                    .padding(.horizontal, 16).padding(.bottom, 8)
                 }
                 Rectangle().fill(DS.line).frame(height: 0.5).padding(.horizontal, 16)
                 content.modifier(AnimatedPanelHeight(height: contentHeight))
@@ -191,7 +195,7 @@ struct MonitorPanel: View {
                     }
                 }.padding(.leading, -9)
             }
-            Text(title).font(.system(size: 14, weight: .medium)).lineLimit(1)
+            title.font(.system(size: 14, weight: .medium)).lineLimit(1)
             if !model.isMonitoring && !model.demoMode {
                 Image(systemName: "pause.circle").font(.system(size: 11)).foregroundStyle(DS.orange)
                     .padding(.leading, 6).help("Automatische Erkennung pausiert")
@@ -200,12 +204,21 @@ struct MonitorPanel: View {
             if !isDrilledIn && isServiceSection {
                 IconButton(symbol: "arrow.clockwise", help: "Aktualisieren (⌘R)") { Task { await model.refresh() } }
                     .disabled(model.isScanning || model.demoMode)
+                let counts = model.counts
                 HStack(spacing: 12) {
-                    Label("\(model.agents.count)", systemImage: "sparkles")
-                    Label("\(model.servers.count)", systemImage: "server.rack")
+                    Label {
+                        Text(counts.agents, format: .number)
+                    } icon: {
+                        Image(systemName: "sparkles")
+                    }
+                    Label {
+                        Text(counts.servers, format: .number)
+                    } icon: {
+                        Image(systemName: "server.rack")
+                    }
                 }
                 .font(.system(size: 11, design: .monospaced)).foregroundStyle(DS.muted)
-                .monospacedDigit().help("\(model.agents.count) Agenten · \(model.servers.count) Dev-Server")
+                .monospacedDigit().help("\(counts.agents) Agenten · \(counts.servers) Dev-Server")
                 .padding(.horizontal, 8)
                 Spacer(minLength: 0)
             }
@@ -265,7 +278,7 @@ struct MonitorPanel: View {
             EmptyState(
                 symbol: model.search.isEmpty ? page.section.symbol : "magnifyingglass",
                 title: model.search.isEmpty
-                    ? "Keine aktiven \(page == .agents ? "Agenten" : "Dienste")" : "Keine Treffer",
+                    ? (page == .agents ? "Keine aktiven Agenten" : "Keine aktiven Dienste") : "Keine Treffer",
                 detail: model.search.isEmpty
                     ? "Laufende Agenten und Dev-Server erscheinen automatisch hier."
                     : "Suche nach Projekt, Agent, PID oder Port.")

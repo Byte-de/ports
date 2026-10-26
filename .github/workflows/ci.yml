@@ -2,18 +2,20 @@ name: Check
 on: [push, pull_request]
 permissions:
   contents: read
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   check:
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Test process, tunnel, migration and transition behaviour
+      - name: Static checks
+        run: Scripts/lint.sh
+      - name: Test core, features, supervisor and process integration
         run: Scripts/check.sh
-      - name: Check Swift formatting
-        run: xcrun swift-format lint --strict --recursive Sources Tests Package.swift
       - name: Build release app
         run: Scripts/build-app.sh "$RUNNER_TEMP/Byte Ports.app"
       - name: Validate bundle
-        run: |
-          codesign --verify --deep --strict "$RUNNER_TEMP/Byte Ports.app"
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$RUNNER_TEMP/Byte Ports.app/Contents/Info.plist")" = de.byte.ports
+        run: Scripts/validate-bundle.sh "$RUNNER_TEMP/Byte Ports.app"

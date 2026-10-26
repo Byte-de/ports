@@ -64,7 +64,7 @@ struct ClassifierTests {
             "/Applications/ChatGPT.app/Contents/Resources/CodexCLI.app/Contents/MacOS/codex",
             arguments: ["codex", "exec-server"])
         #expect(!classifier.isDesktopAgent(backend))
-        #expect(classifier.agent(for: backend)?.name == "Codex-Dienst")
+        #expect(classifier.agent(for: backend)?.name == "Codex service")
     }
 
     @Test func supportsCustomRulesWithExactMatching() {

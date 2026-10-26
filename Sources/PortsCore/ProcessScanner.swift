@@ -15,7 +15,10 @@ public struct LsofListenerDiscovery: ListenerDiscovering {
             ])
         // lsof uses 1 for a successful search without matching listeners.
         guard result.exitCode == 0 || (result.exitCode == 1 && result.output.isEmpty) else {
-            throw MonitorError.scanFailed("Die TCP-Listener konnten nicht abgefragt werden.")
+            throw MonitorError.scanFailed(
+                String(
+                    localized: "The TCP listeners could not be queried.",
+                    comment: "Scan warning when listening ports could not be read"))
         }
         return ListenerParser.parse(result.output)
     }

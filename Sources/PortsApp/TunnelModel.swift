@@ -47,7 +47,7 @@ extension MonitorModel {
                 await updateTunnels()
             } catch {
                 pendingTunnelCopy.remove(target.id)
-                errorMessage = error.localizedDescription
+                report(error, as: .share)
             }
         }
     }
@@ -58,7 +58,7 @@ extension MonitorModel {
             do {
                 if record.phase.isActive { try await tunnels.stop(record.id) } else { await tunnels.dismiss(record.id) }
                 await updateTunnels()
-            } catch { errorMessage = error.localizedDescription }
+            } catch { report(error, as: .stopSharing) }
         }
     }
 

@@ -17,8 +17,9 @@ struct ServiceRow: View {
                 }.buttonStyle(.plain)
                     .help("\(service.title) · Details anzeigen")
                     .accessibilityLabel(
-                        "\(service.title), \(service.process.projectName), \(service.process.state == .paused ? "pausiert" : "läuft"). Details anzeigen"
-                    )
+                        service.process.state == .paused
+                            ? Text("\(service.title), \(service.process.projectName), pausiert. Details anzeigen")
+                            : Text("\(service.title), \(service.process.projectName), läuft. Details anzeigen"))
                 Text(Format.uptime(service.id.startDate)).font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(DS.muted).monospacedDigit().lineLimit(1)
                     .padding(.leading, 8).padding(.trailing, 4).help("Laufzeit")
@@ -78,13 +79,13 @@ struct ServiceBoard: View {
             }.padding(16)
         }
     }
-    private func column(_ title: String, state: ProcessState) -> some View {
+    private func column(_ title: LocalizedStringResource, state: ProcessState) -> some View {
         let services = services.filter { $0.process.state == state }
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
                 Spacer()
-                Text("\(services.count)").monospacedDigit()
+                Text(services.count, format: .number).monospacedDigit()
             }.font(.system(size: 11)).foregroundStyle(DS.muted).padding(.bottom, 4)
             ForEach(services) { service in
                 Button {
@@ -96,8 +97,7 @@ struct ServiceBoard: View {
                             Text(service.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
                         }
                         Text(service.process.projectName).font(.system(size: 11)).foregroundStyle(DS.muted).lineLimit(1)
-                        Text(service.primaryEndpoint.map { ":\(String($0.port))" } ?? "PID \(String(service.id.pid))")
-                            .font(.system(size: 10, design: .monospaced)).foregroundStyle(DS.muted)
+                        address(service).font(.system(size: 10, design: .monospaced)).foregroundStyle(DS.muted)
                     }.padding(12).frame(maxWidth: .infinity, alignment: .leading).surface(radius: 12)
                 }.buttonStyle(.plain)
             }
@@ -105,6 +105,10 @@ struct ServiceBoard: View {
                 Text("Keine Prozesse").font(.system(size: 11)).foregroundStyle(DS.muted).padding(.vertical, 18)
             }
         }.frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+    private func address(_ service: ServiceRecord) -> Text {
+        if let endpoint = service.primaryEndpoint { return Text(verbatim: ":\(endpoint.port)") }
+        return Text("PID \(String(service.id.pid))")
     }
 }
 
@@ -148,7 +152,7 @@ struct InspectorView: View {
                             Text("ADRESSEN").overline()
                             ForEach(service.endpoints, id: \.self) { endpoint in
                                 HStack {
-                                    Text("\(endpoint.address):\(String(endpoint.port))")
+                                    Text(verbatim: "\(endpoint.address):\(endpoint.port)")
                                         .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                                     Spacer()
                                     IconButton(symbol: "arrow.up.forward.square", help: "Adresse öffnen") {
@@ -263,7 +267,7 @@ struct ServiceIdentityLabel: View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 8) {
                 if let endpoint = service.primaryEndpoint {
-                    Text(":\(String(endpoint.port))").font(.system(size: 14, design: .monospaced))
+                    Text(verbatim: ":\(endpoint.port)").font(.system(size: 14, design: .monospaced))
                     Text(service.title).foregroundStyle(DS.tint(service)).lineLimit(1)
                     if service.process.state == .paused {
                         Image(systemName: "pause.circle").foregroundStyle(DS.orange).font(.system(size: 11))
@@ -278,9 +282,12 @@ struct ServiceIdentityLabel: View {
             }.font(.system(size: 13, weight: .medium))
             HStack(spacing: 6) {
                 Image(systemName: "folder").font(.system(size: 11)).accessibilityHidden(true)
-                Text(service.process.workingDirectory.map(Format.path) ?? "PID \(String(service.id.pid))")
-                    .font(.system(size: 11, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+                location.font(.system(size: 11, design: .monospaced)).lineLimit(1).truncationMode(.middle)
             }.foregroundStyle(DS.muted)
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private var location: Text {
+        if let directory = service.process.workingDirectory { return Text(verbatim: Format.path(directory)) }
+        return Text("PID \(String(service.id.pid))")
     }
 }

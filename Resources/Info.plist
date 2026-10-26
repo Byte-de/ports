@@ -27,9 +27,10 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>© 2026 Byte.de</string>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>de</string>
+	<string>en</string>
 	<key>CFBundleLocalizations</key>
 	<array>
+		<string>en</string>
 		<string>de</string>
 	</array>
 </dict>

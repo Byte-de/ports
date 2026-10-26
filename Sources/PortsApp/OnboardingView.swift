@@ -4,7 +4,7 @@ import SwiftUI
 private enum IntroductionStep: Int, CaseIterable, Sendable {
     case welcome, preview, access, ready
 
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
         case .welcome: "Willkommen"
         case .preview: "Das Panel"
@@ -51,7 +51,11 @@ struct OnboardingView: View {
         .panelAlert(
             title: "Einstellungen konnten nicht gespeichert werden",
             message: completionError.map {
-                $0 + "\nOhne Speichern gilt deine Auswahl nur für diese Sitzung. Die vorhandene Datei bleibt erhalten."
+                $0 + "\n"
+                    + String(
+                        localized:
+                            "Ohne Speichern gilt deine Auswahl nur für diese Sitzung. Die vorhandene Datei bleibt erhalten."
+                    )
             }
         ) {
             VStack(alignment: .trailing, spacing: 8) {
@@ -101,7 +105,10 @@ struct OnboardingView: View {
             .padding(.trailing, 10)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("Schritt \(step.rawValue + 1) von \(IntroductionStep.allCases.count): \(step.title)")
+        .accessibilityLabel(
+            Text(
+                "Schritt \(step.rawValue + 1) von \(IntroductionStep.allCases.count): \(String(localized: step.title))"
+            ))
     }
 
     @ViewBuilder private func page(_ item: IntroductionStep) -> some View {
@@ -161,14 +168,15 @@ struct OnboardingView: View {
                 } else if !model.hasScanned {
                     ProgressView().controlSize(.small)
                     Text("Laufende Prozesse werden erfasst…")
-                } else if model.visibleUniverse.isEmpty {
+                } else if model.counts.total == 0 {
                     Label("Bereit für deinen ersten Dienst", systemImage: "checkmark")
                 } else {
+                    let counts = model.counts
                     Label(
-                        "\(model.agents.count) \(model.agents.count == 1 ? "Agent" : "Agenten")",
+                        "\(counts.agents) \(counts.agents == 1 ? "Agent" : "Agenten")",
                         systemImage: "sparkles")
                     Text("·").foregroundStyle(DS.muted)
-                    Label("\(model.servers.count) Server erkannt", systemImage: "server.rack")
+                    Label("\(counts.servers) Server erkannt", systemImage: "server.rack")
                 }
             }.font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.muted)
             if model.snapshot.warning != nil && !model.demoMode {
@@ -178,7 +186,7 @@ struct OnboardingView: View {
         }.padding(.horizontal, 32)
     }
 
-    private func heading(_ title: String, detail: String) -> some View {
+    private func heading(_ title: LocalizedStringResource, detail: LocalizedStringResource) -> some View {
         VStack(spacing: 9) {
             Text(title).font(.system(size: 25, weight: .semibold)).tracking(-0.5)
             Text(detail).font(.system(size: 12)).foregroundStyle(DS.muted).multilineTextAlignment(.center).lineSpacing(
@@ -255,11 +263,13 @@ private struct IntroductionPreview: View {
             }.padding(.horizontal, 16).padding(.vertical, 4).background(PanelGlass(radius: 20))
         }.frame(width: 480)
     }
-    private func actionIcon(_ symbol: String, title: String, tint: Color = DS.muted) -> some View {
+    private func actionIcon(_ symbol: String, title: LocalizedStringResource, tint: Color = DS.muted) -> some View {
         Image(systemName: symbol).font(.system(size: 13)).foregroundStyle(tint)
-            .frame(width: 24, height: 40).help(title).accessibilityLabel(title)
+            .frame(width: 24, height: 40).help(Text(title)).accessibilityLabel(Text(title))
     }
-    private func tab(_ title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    private func tab(
+        _ title: LocalizedStringResource, symbol: String, selected: Bool, action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             Label(title, systemImage: symbol).font(.system(size: 11, weight: .medium))
                 .padding(.horizontal, 12).frame(height: 40)

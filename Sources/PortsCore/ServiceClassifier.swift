@@ -49,7 +49,10 @@ public struct ServiceClassifier: Sendable {
             if entry.provider.id == "codex",
                 process.arguments.dropFirst().prefix(2).contains(where: { ["exec-server", "app-server"].contains($0) })
             {
-                return AgentProvider(id: "codex", name: "Codex-Dienst", symbol: "command")
+                return AgentProvider(
+                    id: "codex",
+                    name: String(localized: "Codex service", comment: "Label for Codex background server processes"),
+                    symbol: "command")
             }
             return entry.provider
         }
@@ -90,9 +93,13 @@ public struct ServiceClassifier: Sendable {
             (["next", "next-server"], "Next.js"), (["vite"], "Vite"), (["astro"], "Astro"),
             (["wrangler"], "Wrangler"), (["storybook"], "Storybook"), (["nuxt", "nuxi"], "Nuxt"),
             (["uvicorn", "gunicorn", "fastapi"], "FastAPI"), (["flask"], "Flask"),
-            (["rails"], "Rails"), (["http-server", "serve"], "Static server"),
+            (["rails"], "Rails"),
         ]
         for (tokens, name) in frameworks where !tokens.isDisjoint(with: names) { return (name, true) }
+        // Looked up only on a match, because every scanned process is classified.
+        if !names.isDisjoint(with: ["http-server", "serve"]) {
+            return (String(localized: "Static server", comment: "Framework label for a static file server"), true)
+        }
         if process.arguments.contains("http.server") { return ("Python HTTP", true) }
         if process.arguments.contains("runserver") { return ("Django", true) }
         let runtimes: [(String, String)] = [

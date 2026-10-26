@@ -11,6 +11,16 @@ mkdir -p "$bundle/Contents/MacOS" "$bundle/Contents/Resources/ThirdParty" "$bund
 cp "$binary" "$bundle/Contents/MacOS/BytePorts"
 cp "$project_root/Resources/Info.plist" "$bundle/Contents/Info.plist"
 cp "$project_root/Resources/BytePorts.icns" "$bundle/Contents/Resources/BytePorts.icns"
+# Localized tables must sit in Contents/Resources so Bundle.main resolves SwiftUI and String(localized:).
+# Never place resource bundles at the .app root: codesign rejects unsealed content there.
+# Copy only the tables: Finder drops .DS_Store into opened folders, which plutil cannot convert.
+for localization in "$project_root/Resources/Localization/"*.lproj; do
+  tables="$bundle/Contents/Resources/$(basename "$localization")"
+  mkdir -p "$tables"
+  /usr/bin/find "$localization" -maxdepth 1 -type f ! -name '.*' \( -name '*.strings' -o -name '*.stringsdict' \) \
+    -exec cp {} "$tables/" \;
+done
+/usr/bin/find "$bundle/Contents/Resources" -path '*.lproj/*' -type f -exec /usr/bin/plutil -convert binary1 {} +
 cloudflared=$("$project_root/Scripts/fetch-cloudflared.sh")
 cp "$cloudflared" "$bundle/Contents/Helpers/cloudflared"
 cp "$(dirname "$binary")/ports-tunnel-runner" "$bundle/Contents/Helpers/ports-tunnel-runner"

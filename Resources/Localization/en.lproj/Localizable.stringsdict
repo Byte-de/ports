@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- English plural rules. Keys are the English source text used in code. -->
+<plist version="1.0">
+<dict>
+	<!-- MARK: Shared -->
+
+	<!-- MARK: Sources/PortsApp/ActionsView.swift -->
+
+	<!-- MARK: Sources/PortsApp/ActivityView.swift -->
+
+	<!-- MARK: Sources/PortsApp/CompactMonitorView.swift -->
+
+	<!-- MARK: Sources/PortsApp/DesignSystem.swift -->
+
+	<!-- MARK: Sources/PortsApp/LaunchModel.swift -->
+
+	<!-- MARK: Sources/PortsApp/MonitorModel.swift -->
+
+	<!-- MARK: Sources/PortsApp/MonitorPanel.swift -->
+
+	<!-- MARK: Sources/PortsApp/NotchController.swift -->
+
+	<!-- MARK: Sources/PortsApp/OnboardingView.swift -->
+
+	<!-- MARK: Sources/PortsApp/PortsApp.swift -->
+
+	<!-- MARK: Sources/PortsApp/PreferencesView.swift -->
+	<key>%lld seconds</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@seconds@</string>
+		<key>seconds</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld second</string>
+			<key>other</key>
+			<string>%lld seconds</string>
+		</dict>
+	</dict>
+
+	<!-- MARK: Sources/PortsApp/ServiceViews.swift -->
+
+	<!-- MARK: Sources/PortsApp/TunnelModel.swift -->
+
+	<!-- MARK: Sources/PortsApp/TunnelViews.swift -->
+
+	<!-- MARK: Sources/PortsApp/UpdateModel.swift -->
+
+	<!-- MARK: Sources/PortsApp/WorkspaceViews.swift -->
+
+	<!-- MARK: Sources/PortsCore/CloudflareTunnel.swift -->
+
+	<!-- MARK: Sources/PortsCore/CloudflareTunnelManager.swift -->
+
+	<!-- MARK: Sources/PortsCore/CommandRunner.swift -->
+
+	<!-- MARK: Sources/PortsCore/LaunchConfiguration.swift -->
+
+	<!-- MARK: Sources/PortsCore/LaunchManager.swift -->
+
+	<!-- MARK: Sources/PortsCore/ProcessInspector.swift -->
+
+	<!-- MARK: Sources/PortsCore/ProcessScanner.swift -->
+
+	<!-- MARK: Sources/PortsCore/ReleaseChecker.swift -->
+
+	<!-- MARK: Sources/PortsCore/ServiceClassifier.swift -->
+</dict>
+</plist>

@@ -4,7 +4,7 @@ import Testing
 @testable import PortsCore
 
 struct PreferencesMigrationTests {
-    // Actual 1.0/1.1 schema, with non-default choices and user-created data.
+    // Schema before the additive fields, with non-default choices and user-created data.
     private let legacy = """
         {
           "version": 1,
@@ -77,6 +77,81 @@ struct PreferencesMigrationTests {
             #expect(throws: (any Error).self) { try repository.load() }
             let unchanged = try String(contentsOf: repository.url, encoding: .utf8)
             #expect(unchanged == invalid)
+        }
+    }
+
+    @Test func legacySchemaGetsDefaultsForNewFields() throws {
+        try withRepository(legacy) { repository in
+            let loaded = try repository.load()
+            #expect(!loaded.groupsServicesByProject)
+            #expect(loaded.lastLaunchDirectory == nil)
+            #expect(!loaded.checksForUpdatesAutomatically)
+            #expect(loaded.lastUpdateCheck == nil)
+            #expect(loaded.latestKnownVersion == nil)
+            #expect(loaded.dismissedUpdateVersion == nil)
+            #expect(loaded.terminalApp == .terminal)
+            #expect(loaded.opensWithGlobalShortcut)
+            #expect(loaded.detectsAutomatically)
+            #expect(loaded.refreshInterval == 10)
+        }
+    }
+
+    @Test func newFieldsSurviveSaveAndReload() throws {
+        try withRepository(legacy) { repository in
+            var preferences = try repository.load()
+            let checked = Date(timeIntervalSinceReferenceDate: 800_000_000.25)
+            preferences.groupsServicesByProject = true
+            preferences.lastLaunchDirectory = "/tmp/site"
+            preferences.checksForUpdatesAutomatically = true
+            preferences.lastUpdateCheck = checked
+            preferences.latestKnownVersion = "1.1.0"
+            preferences.dismissedUpdateVersion = "1.0.5"
+            preferences.terminalApp = .ghostty
+            preferences.opensWithGlobalShortcut = false
+            preferences.detectsAutomatically = false
+            try repository.save(preferences)
+            let restored = try repository.load()
+            #expect(restored.groupsServicesByProject)
+            #expect(restored.lastLaunchDirectory == "/tmp/site")
+            #expect(restored.checksForUpdatesAutomatically)
+            #expect(restored.lastUpdateCheck == checked)
+            #expect(restored.latestKnownVersion == "1.1.0")
+            #expect(restored.dismissedUpdateVersion == "1.0.5")
+            #expect(restored.terminalApp == .ghostty)
+            #expect(!restored.opensWithGlobalShortcut)
+            #expect(!restored.detectsAutomatically)
+            #expect(restored.favoriteProjects == ["/tmp/favorite"])
+            // The on-disk format is a reference-date number, not a formatted string.
+            let json = try JSONSerialization.jsonObject(with: Data(contentsOf: repository.url)) as? [String: Any]
+            let stored = json?["preferences"] as? [String: Any]
+            #expect(stored?["lastUpdateCheck"] as? Double == 800_000_000.25)
+            #expect(stored?["terminalApp"] as? String == "ghostty")
+        }
+    }
+
+    @Test func unknownTerminalFallsBackToTerminal() throws {
+        let future = legacy.replacingOccurrences(
+            of: "\"refreshInterval\": 10,", with: "\"terminalApp\": \"kitty\", \"refreshInterval\": 10,")
+        try withRepository(future) { repository in
+            let loaded = try repository.load()
+            #expect(loaded.terminalApp == .terminal)
+            #expect(loaded.refreshInterval == 10)
+            #expect(loaded.showNotch)
+        }
+    }
+
+    @Test(arguments: [
+        "\"terminalApp\": 3", "\"checksForUpdatesAutomatically\": \"yes\"", "\"opensWithGlobalShortcut\": 1",
+        "\"lastUpdateCheck\": \"2026-01-01\"", "\"lastLaunchDirectory\": 5", "\"groupsServicesByProject\": \"no\"",
+        "\"detectsAutomatically\": \"true\"",
+    ])
+    func malformedNewFieldsAreRejectedAndFileKept(field: String) throws {
+        let invalid = legacy.replacingOccurrences(
+            of: "\"refreshInterval\": 10,", with: "\(field), \"refreshInterval\": 10,")
+        try withRepository(invalid) { repository in
+            #expect(throws: (any Error).self) { try repository.load() }
+            let unchanged = try Data(contentsOf: repository.url)
+            #expect(unchanged == Data(invalid.utf8))
         }
     }
 

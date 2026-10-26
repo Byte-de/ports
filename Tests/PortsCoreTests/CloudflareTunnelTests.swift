@@ -128,7 +128,7 @@ struct CloudflareTunnelTests {
         #expect(try await wait(manager, phase: .ready) != nil)
         origin.set(false)
         let ended = try await wait(manager, phase: .failed)
-        #expect(ended?.message?.contains("Port beendet") == true)
+        #expect(ended?.message == "The server or port stopped. Sharing was closed.")
         try await manager.shutdown()
     }
 

@@ -1,12 +1,13 @@
 import AppKit
 import Observation
 import PortsCore
+import PortsFeatures
 import SwiftUI
 
 enum NavigationSection: String, CaseIterable, Identifiable {
     case overview, agents, servers, projects, actions, activity, settings
     var id: String { rawValue }
-    var title: String {
+    var title: LocalizedStringResource {
         switch self {
         case .overview: "Prozesse"
         case .agents: "Agenten"
@@ -44,6 +45,16 @@ struct PendingAction: Identifiable {
     let action: ProcessAction
 }
 
+/// Settings folders of earlier app names, newest first: pre-release builds were called Byte Relay, the internal
+/// prototype DevScope. The case label goes to the log.
+private enum LegacyPreferences: String, CaseIterable {
+    case byteRelay, devScope
+    var url: URL {
+        let folder = self == .byteRelay ? "Byte Relay" : "DevScope"
+        return URL.applicationSupportDirectory.appending(path: "\(folder)/preferences.json")
+    }
+}
+
 @MainActor @Observable
 final class MonitorModel {
     var section: NavigationSection = .servers
@@ -60,7 +71,9 @@ final class MonitorModel {
     var isLaunching = false
     var isMonitoring = true
     var demoMode = false
-    var errorMessage: String?
+    var panelError: PanelError?
+    /// Shown inline instead of an alert, because scans repeat every few seconds.
+    var detectionIssue: String?
     var toast: String?
     var toastUsesMotion = false
     var dialogUsesMotion = false
@@ -95,7 +108,8 @@ final class MonitorModel {
     @ObservationIgnored private var scanGeneration = 0
     @ObservationIgnored private var loopTask: Task<Void, Never>?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
-    @ObservationIgnored var revealWindow: (() -> Void)?
+    @ObservationIgnored private(set) var revealWindow: (() -> Void)?
+    @ObservationIgnored private var windowRevealPending = false
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -105,20 +119,23 @@ final class MonitorModel {
         } else {
             directory = URL.applicationSupportDirectory.appending(path: "Byte Ports", directoryHint: .isDirectory)
         }
-        // Pre-release builds were called Byte Relay, the internal prototype DevScope.
-        // Migrate from the newest of them that still has settings.
-        let legacyURL =
+        // Migrate from the newest earlier name that still has settings.
+        let legacy =
             arguments.contains("--state-directory")
-            ? nil
-            : ["Byte Relay", "DevScope"]
-                .map { URL.applicationSupportDirectory.appending(path: "\($0)/preferences.json") }
-                .first { FileManager.default.fileExists(atPath: $0.path) }
-        repository = PreferencesRepository(url: directory.appending(path: "preferences.json"), legacyURL: legacyURL)
-        do { preferences = try repository.load() } catch {
+            ? nil : LegacyPreferences.allCases.first { FileManager.default.fileExists(atPath: $0.url.path) }
+        repository = PreferencesRepository(url: directory.appending(path: "preferences.json"), legacyURL: legacy?.url)
+        let migrates = legacy != nil && !FileManager.default.fileExists(atPath: repository.url.path)
+        do {
+            preferences = try repository.load()
+            if migrates, let legacy {
+                PortsLog.persistence.notice("Migrated preferences from \(legacy.rawValue, privacy: .public)")
+            }
+        } catch {
             preferences = AppPreferences()
             persistenceAvailable = false
-            errorMessage =
-                "Die Einstellungen konnten nicht geladen werden. Die vorhandene Datei bleibt erhalten. \(error.localizedDescription)"
+            PortsLog.persistence.error(
+                "Preferences unreadable, saving disabled: \(error.localizedDescription, privacy: .private)")
+            report("The existing file is kept unchanged. \(error.localizedDescription)", as: .preferencesLoad)
         }
         if arguments.contains("--demo") {
             demoMode = true
@@ -132,30 +149,52 @@ final class MonitorModel {
     }
 
     var services: [ServiceRecord] { snapshot.services }
-    var agents: [ServiceRecord] { services.filter { $0.kind == .agent } }
-    var servers: [ServiceRecord] { services.filter { $0.kind == .server } }
     var selected: ServiceRecord? { services.first { $0.id == selectedID } }
     var visibleUniverse: [ServiceRecord] {
-        services.filter { $0.kind != .listener || preferences.showOtherListeners }
+        ServiceListing.visible(services, filter: .all, search: "", showsListeners: preferences.showOtherListeners)
+    }
+    var counts: ServiceCounts { ServiceCounts(visibleUniverse) }
+
+    /// The menu bar label and the main window both bind the opener, so a hidden menu bar item cannot leave the app
+    /// without one. A reveal requested before either appeared runs on the first binding.
+    func bindWindowOpener(_ open: @escaping () -> Void) {
+        revealWindow = {
+            guard PanelWindowCoordinator.shared.prepareMainWindow() else { return }
+            open()
+            NSApp.activate()
+            PanelWindowCoordinator.shared.bringMainWindowForward()
+        }
+        if windowRevealPending {
+            windowRevealPending = false
+            revealWindow?()
+        }
+    }
+
+    func showMainWindow() {
+        guard let revealWindow else {
+            windowRevealPending = true
+            PortsLog.lifecycle.error("Main window requested before any view bound the window opener")
+            return
+        }
+        revealWindow()
     }
 
     var hasBlockingPanelDialog: Bool {
         showLaunchForm || pendingAction != nil || pendingJobStop != nil || pendingShare != nil
     }
-    var hasPanelDialog: Bool { hasBlockingPanelDialog || errorMessage != nil }
+    var hasPanelDialog: Bool { hasBlockingPanelDialog || panelError != nil }
 
-    func presentLaunch(from surface: MonitorSurface) {
-        guard !demoMode, !hasPanelDialog else { return }
-        presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
-        dialogUsesMotion = PanelMotion.isPointerEvent
-        showLaunchForm = true
+    func report(_ error: any Error, as context: ErrorContext) {
+        present(error.localizedDescription, as: context)
     }
 
-    func requestJobStop(_ job: LaunchRecord, from surface: MonitorSurface) {
-        guard !demoMode, !hasPanelDialog else { return }
-        presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
-        dialogUsesMotion = PanelMotion.isPointerEvent
-        pendingJobStop = job
+    func report(_ message: LocalizedStringResource, as context: ErrorContext) {
+        present(String(localized: message), as: context)
+    }
+
+    private func present(_ message: String, as context: ErrorContext) {
+        PortsLog.ui.error("Presented error \(context.logKey, privacy: .public): \(message, privacy: .private)")
+        panelError = PanelError(context: context, message: message)
     }
 
     func dismissPanelDialog() {
@@ -168,35 +207,32 @@ final class MonitorModel {
 
     func confirmPublicSharing() {
         guard let target = pendingShare, !isQuitting, !demoMode else { return }
+        guard persistenceAvailable else {
+            report("The settings can't be read, so sharing wasn't started.", as: .share)
+            return
+        }
         do {
-            guard persistenceAvailable else {
-                throw MonitorError.scanFailed(
-                    "Die Einstellungen sind nicht lesbar. Die Freigabe wurde nicht gestartet.")
-            }
             var next = preferences
             next.hasAcknowledgedPublicSharing = true
-            try repository.save(next)
+            try writePreferences(next)
             preferences = next
             dismissPanelDialog()
             share(target, from: presentationSurface)
-        } catch { errorMessage = error.localizedDescription }
+        } catch { report(error, as: .share) }
     }
     var filteredServices: [ServiceRecord] {
         filteredServices(in: section)
     }
 
     func filteredServices(in section: NavigationSection) -> [ServiceRecord] {
-        visibleUniverse.filter { service in
-            if section == .agents && service.kind != .agent { return false }
-            if section == .servers && service.endpoints.isEmpty { return false }
-            guard !search.isEmpty else { return true }
-            let text =
-                [
-                    service.title, service.process.projectName, service.process.workingDirectory ?? "",
-                    String(service.id.pid),
-                ] + service.endpoints.map { String($0.port) }
-            return text.contains { $0.localizedCaseInsensitiveContains(search) }
-        }
+        let filter: ServiceFilter =
+            switch section {
+            case .agents: .agents
+            case .servers: .servers
+            default: .all
+            }
+        return ServiceListing.visible(
+            services, filter: filter, search: search, showsListeners: preferences.showOtherListeners)
     }
 
     func startMonitoring() {
@@ -217,8 +253,14 @@ final class MonitorModel {
         let generation = scanGeneration
         defer { isScanning = false }
         do {
+            #if DEBUG
+                // Manual check of the inline failure line: scans fail while this file exists.
+                let failureSwitch = FileManager.default.temporaryDirectory.appending(path: "ports-fail-scans")
+                if FileManager.default.fileExists(atPath: failureSwitch.path) { throw MonitorError.timedOut }
+            #endif
             let next = try await scanner.scan(customRules: preferences.agentRules)
             guard generation == scanGeneration, !demoMode else { return }
+            detectionIssue = nil
             let previousIDs = Set(services.map(\.id))
             let nextIDs = Set(next.services.map(\.id))
             if hasScanned {
@@ -246,7 +288,10 @@ final class MonitorModel {
             if !showingDetails, selectedID.map({ !nextIDs.contains($0) }) ?? true {
                 selectedID = visibleUniverse.first?.id
             }
-        } catch { errorMessage = error.localizedDescription }
+        } catch {
+            PortsLog.scan.error("Scan failed: \(error.localizedDescription, privacy: .private)")
+            if generation == scanGeneration && !demoMode { detectionIssue = error.localizedDescription }
+        }
         if !launches.isEmpty { launches = await launcher.records() }
         if let logJobID { logs = await launcher.output(for: logJobID) }
     }
@@ -287,10 +332,10 @@ final class MonitorModel {
                 throw MonitorError.scanFailed(
                     "Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.")
             }
-            try repository.save(next)
+            try writePreferences(next)
         }
         preferences = next
-        if !persist && !persistenceAvailable { errorMessage = nil }
+        if !persist && !persistenceAvailable { panelError = nil }
         onboardingSession = nil
         navigate(.servers)
         if let demo, demo != demoMode { toggleDemo() }
@@ -307,7 +352,7 @@ final class MonitorModel {
                     pendingTunnelCopy.removeAll()
                     await updateTunnels()
                     applyDemoToggle()
-                } catch { errorMessage = error.localizedDescription }
+                } catch { report(error, as: .generic) }
             }
         } else {
             applyDemoToggle()
@@ -322,6 +367,7 @@ final class MonitorModel {
         selectedID = nil
         showingDetails = false
         showingLogs = false
+        detectionIssue = nil
         if demoMode {
             snapshot = DemoData.snapshot
             selectedID = services.first?.id
@@ -335,12 +381,19 @@ final class MonitorModel {
 
     func savePreferences() {
         guard persistenceAvailable else {
-            errorMessage =
-                "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README."
+            report(
+                "Saving is turned off so the unreadable settings file is kept. The README has details.",
+                as: .preferencesSave)
             return
         }
-        do { try repository.save(preferences) } catch {
-            errorMessage = "Einstellungen konnten nicht gespeichert werden: \(error.localizedDescription)"
+        do { try writePreferences(preferences) } catch { report(error, as: .preferencesSave) }
+    }
+
+    /// Logs a failed save; callers decide whether and how to present it.
+    private func writePreferences(_ next: AppPreferences) throws {
+        do { try repository.save(next) } catch {
+            PortsLog.persistence.error("Saving preferences failed: \(error.localizedDescription, privacy: .private)")
+            throw error
         }
     }
 
@@ -368,65 +421,32 @@ final class MonitorModel {
             defer { busyIDs.remove(service.id) }
             do {
                 try await Task.detached { try controller.perform(action, on: service.process) }.value
-                let verb = action == .pause ? "pausiert" : (action == .resume ? "fortgesetzt" : "Stop angefragt")
+                let entry: LocalizedStringResource
+                let message: LocalizedStringResource
+                switch action {
+                case .pause:
+                    entry = "\(service.title): pausiert"
+                    message = "\(service.title) · pausiert"
+                case .resume:
+                    entry = "\(service.title): fortgesetzt"
+                    message = "\(service.title) · fortgesetzt"
+                case .terminate:
+                    entry = "\(service.title): Stop angefragt"
+                    message = "\(service.title) · Stop angefragt"
+                }
                 record(
-                    "\(service.title): \(verb)", detail: "PID \(service.id.pid)",
+                    entry, detail: "PID \(service.id.pid)",
                     symbol: action == .pause ? "pause.circle" : "checkmark.circle")
-                notify("\(service.title) · \(verb)")
+                notify(message)
                 await refresh()
             } catch {
-                errorMessage = error.localizedDescription
+                report(error, as: ErrorContext(action))
                 await refresh()
             }
         }
     }
 
-    func run(_ configuration: LaunchConfiguration, save: Bool) {
-        guard !demoMode, !isLaunching else { return }
-        isLaunching = true
-        Task {
-            defer { isLaunching = false }
-            do {
-                let id = try await launcher.start(configuration)
-                if save && !preferences.launchConfigurations.contains(where: { $0.id == configuration.id }) {
-                    preferences.launchConfigurations.append(configuration)
-                    savePreferences()
-                }
-                launches = await launcher.records()
-                logJobID = id
-                showingLogs = true
-                record("\(configuration.name) gestartet", detail: configuration.directory, symbol: "play.circle")
-                showLaunchForm = false
-                section = .actions
-                search = ""
-                showingDetails = false
-                await refresh()
-            } catch { errorMessage = error.localizedDescription }
-        }
-    }
-
-    func manageJob(_ job: LaunchRecord, restart: Bool) {
-        guard !demoMode, busyJobs.insert(job.id).inserted else { return }
-        Task {
-            defer { busyJobs.remove(job.id) }
-            do {
-                if restart { logJobID = try await launcher.restart(job.id) } else { try await launcher.stop(job.id) }
-                launches = await launcher.records()
-                record(
-                    "\(job.configuration.name) \(restart ? "neu gestartet" : "gestoppt")", detail: "Startaktion",
-                    symbol: "arrow.clockwise")
-                await refresh()
-            } catch { errorMessage = error.localizedDescription }
-        }
-    }
-
-    func showLogs(_ job: LaunchRecord) {
-        logJobID = job.id
-        showingLogs = true
-        Task { logs = await launcher.output(for: job.id) }
-    }
-
-    func copy(_ value: String, message: String = "Kopiert", animateFeedback: Bool? = nil) {
+    func copy(_ value: String, message: LocalizedStringResource = "Kopiert", animateFeedback: Bool? = nil) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
         notify(message, animate: animateFeedback ?? PanelMotion.isPointerEvent)
@@ -434,7 +454,7 @@ final class MonitorModel {
 
     func openEndpoint(_ endpoint: ListeningEndpoint) {
         guard !demoMode, let url = endpoint.url else { return }
-        if !NSWorkspace.shared.open(url) { errorMessage = "Die Adresse konnte nicht geöffnet werden." }
+        if !NSWorkspace.shared.open(url) { report("The address couldn't be opened.", as: .open) }
     }
 
     func openDirectory(_ directory: String, terminal: Bool = false) {
@@ -442,14 +462,14 @@ final class MonitorModel {
         let url = URL(fileURLWithPath: directory, isDirectory: true)
         if terminal {
             guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
-                errorMessage = "Terminal wurde nicht gefunden."
+                report("Terminal wasn't found.", as: .open)
                 return
             }
             NSWorkspace.shared.open([url], withApplicationAt: app, configuration: .init()) { [weak self] _, error in
-                if let error { Task { @MainActor in self?.errorMessage = error.localizedDescription } }
+                if let error { Task { @MainActor in self?.report(error, as: .open) } }
             }
         } else if !NSWorkspace.shared.open(url) {
-            errorMessage = "Der Projektordner konnte nicht geöffnet werden."
+            report("The project folder couldn't be opened.", as: .open)
         }
     }
 
@@ -474,10 +494,10 @@ final class MonitorModel {
         savePreferences()
     }
 
-    func notify(_ text: String, animate: Bool = true) {
+    func notify(_ text: LocalizedStringResource, animate: Bool = true) {
         toastTask?.cancel()
         toastUsesMotion = animate
-        toast = text
+        toast = String(localized: text)
         toastTask = Task { [weak self] in
             do {
                 try await Task.sleep(for: .seconds(2.5))
@@ -486,8 +506,10 @@ final class MonitorModel {
         }
     }
 
-    private func record(_ title: String, detail: String, symbol: String) {
-        activity.insert(ActivityEntry(date: Date(), title: title, detail: detail, symbol: symbol), at: 0)
+    /// Entries keep the resolved text so the activity search matches what is shown.
+    func record(_ title: LocalizedStringResource, detail: String, symbol: String) {
+        activity.insert(
+            ActivityEntry(date: Date(), title: String(localized: title), detail: detail, symbol: symbol), at: 0)
         activity = Array(activity.prefix(100))
     }
 }

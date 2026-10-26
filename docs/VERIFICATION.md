@@ -44,6 +44,46 @@ is a release follow-up, not an inferred result.
   rendering, accessible tab controls and static FAQs. Updated runtime dependencies
   pass the production dependency audit with zero known vulnerabilities.
 
+## Performance baseline (before E1/E2)
+
+Recorded 26 October 2026, 20:44 CET, with the scanner of commit d393524 (lsof
+listener discovery). Host: Apple M2 Max (12 cores, 64 GB), macOS 26.6.2 (25G83),
+Swift 6.4; other work kept the load average near 6. Own-process count: 829 processes
+of the current user, 26 of them listed as services. Release build of
+`ports-diagnostics` (options from `Scripts/toolchain.sh`), one scanner, one
+unreported warm-up scan, then `ports-diagnostics --benchmark 20`:
+
+```sh
+source Scripts/toolchain.sh
+swift build "${swift_options[@]}" -c release --product ports-diagnostics
+"$(swift build "${swift_options[@]}" -c release --show-bin-path)/ports-diagnostics" --benchmark 20
+```
+
+```json
+{
+  "cpuMillisecondsPerScan" : {
+    "children" : 79.4,
+    "self" : 43.9
+  },
+  "maxResidentMegabytes" : 12.5,
+  "processes" : 829,
+  "scans" : 20,
+  "services" : 26,
+  "wallMilliseconds" : {
+    "max" : 222.4,
+    "p50" : 213.2,
+    "p95" : 221.1
+  }
+}
+```
+
+Children CPU is the spawned `lsof`. The debug binary that `Scripts/check.sh` builds
+measured p95 338.3 ms with 161.6 ms self CPU per scan, so compare the same build
+configuration. `Scripts/measure-resources.sh <pid> <seconds> [interval] [out.csv]`
+samples the running app without root: CSV rows from `top`, average CPU from `ps`
+and the idle wake-up delta. The first CSV row is `top`'s reference sample (CPU 0.0);
+leave it out of averages. App traces are recorded with the release checks.
+
 ## Distribution gates still requiring external access
 
 - Apple notarization/stapling and Gatekeeper acceptance are blocked by Apple's

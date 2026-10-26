@@ -211,10 +211,10 @@ private struct NotchView: View {
         Button(action: toggle) {
             HStack(spacing: 12) {
                 Image(systemName: "sparkles")
-                Text("\(model.agents.count)")
+                Text(model.counts.agents, format: .number)
                 Rectangle().fill(DS.line).frame(width: 1, height: 12)
                 Image(systemName: "server.rack")
-                Text("\(model.servers.count)")
+                Text(model.counts.servers, format: .number)
                 Spacer()
                 if model.demoMode { Text("DEMO").font(.system(size: 8)).foregroundStyle(DS.orange) }
                 Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(.secondary)

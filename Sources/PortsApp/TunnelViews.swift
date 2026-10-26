@@ -6,8 +6,8 @@ struct ShareServerButton: View {
     let target: TunnelTarget
     let surface: MonitorSurface
     private var record: TunnelRecord? { model.tunnelRecord(target) }
-    private var help: String {
-        return record?.phase == .ready ? "Freigabelink kopieren" : "Öffentlich teilen"
+    private var help: LocalizedStringResource {
+        record?.phase == .ready ? "Freigabelink kopieren" : "Öffentlich teilen"
     }
     private var working: Bool {
         model.sharingBusy.contains(target.id) || [.starting, .reconnecting, .stopping].contains(record?.phase)
@@ -64,7 +64,7 @@ struct TunnelStatusRow: View {
         self.record = record
     }
 
-    private var title: String {
+    private var title: LocalizedStringResource {
         switch record.phase {
         case .starting: "Cloudflare verbindet…"
         case .ready: "Öffentlich · Cloudflare"
@@ -73,6 +73,10 @@ struct TunnelStatusRow: View {
         case .stopped: "Freigabe beendet"
         case .failed: "Freigabe beendet"
         }
+    }
+    private var detail: Text {
+        if let message = record.message { return Text(verbatim: message) }
+        return Text("Port \(String(record.target.endpoint.port)) · Abbrechen jederzeit möglich")
     }
     var body: some View {
         HStack(spacing: 8) {
@@ -101,8 +105,7 @@ struct TunnelStatusRow: View {
                         .accessibilityLabel("Freigabelink kopieren: \(url.absoluteString)")
                         .transition(.opacity)
                 } else {
-                    Text(record.message ?? "Port \(String(record.target.endpoint.port)) · Abbrechen jederzeit möglich")
-                        .font(.system(size: 10)).foregroundStyle(DS.muted).lineLimit(1)
+                    detail.font(.system(size: 10)).foregroundStyle(DS.muted).lineLimit(1)
                         .help(record.message ?? "")
                         .transition(.opacity)
                 }

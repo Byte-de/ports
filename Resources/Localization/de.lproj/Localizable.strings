@@ -1,0 +1,98 @@
+/* German. Keys are the English source text used in code. */
+
+/* MARK: Shared */
+
+/* MARK: Sources/PortsApp/ActionsView.swift */
+
+/* MARK: Sources/PortsApp/ActivityView.swift */
+
+/* MARK: Sources/PortsApp/CompactMonitorView.swift */
+
+/* MARK: Sources/PortsApp/DesignSystem.swift */
+
+/* MARK: Sources/PortsApp/LaunchModel.swift */
+
+/* MARK: Sources/PortsApp/MonitorModel.swift */
+"Saving is turned off so the unreadable settings file is kept. The README has details." = "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README.";
+"Terminal wasn't found." = "Terminal wurde nicht gefunden.";
+"The address couldn't be opened." = "Die Adresse konnte nicht geöffnet werden.";
+"The existing file is kept unchanged. %@" = "Die vorhandene Datei bleibt erhalten. %@";
+"The project folder couldn't be opened." = "Der Projektordner konnte nicht geöffnet werden.";
+"The settings can't be read, so sharing wasn't started." = "Die Einstellungen sind nicht lesbar. Die Freigabe wurde nicht gestartet.";
+
+/* MARK: Sources/PortsApp/MonitorPanel.swift */
+"Detection failed: %@" = "Erkennung fehlgeschlagen: %@";
+
+/* MARK: Sources/PortsApp/NotchController.swift */
+
+/* MARK: Sources/PortsApp/OnboardingView.swift */
+
+/* MARK: Sources/PortsApp/PanelError.swift */
+"Couldn't open" = "Öffnen nicht möglich";
+"Couldn't pause" = "Pausieren nicht möglich";
+"Couldn't quit" = "Beenden nicht möglich";
+"Couldn't read settings" = "Einstellungen nicht lesbar";
+"Couldn't resume" = "Fortsetzen nicht möglich";
+"Couldn't share" = "Teilen nicht möglich";
+"Couldn't start" = "Starten nicht möglich";
+"Couldn't stop" = "Stoppen nicht möglich";
+"Error" = "Fehler";
+"Settings not saved" = "Einstellungen nicht gespeichert";
+"Sharing didn't stop" = "Freigabe nicht beendet";
+
+/* MARK: Sources/PortsApp/PortsApp.swift */
+
+/* MARK: Sources/PortsApp/PreferencesView.swift */
+
+/* MARK: Sources/PortsApp/ServiceViews.swift */
+
+/* MARK: Sources/PortsApp/TunnelModel.swift */
+
+/* MARK: Sources/PortsApp/TunnelViews.swift */
+
+/* MARK: Sources/PortsApp/UpdateModel.swift */
+
+/* MARK: Sources/PortsApp/WorkspaceViews.swift */
+
+/* MARK: Sources/PortsCore/CloudflareTunnel.swift */
+"Only running local HTTP development servers can be shared." = "Nur laufende lokale HTTP-Dev-Server können geteilt werden.";
+"Public sharing requires macOS 15 or later." = "Öffentlich teilen benötigt macOS 15 oder neuer.";
+"Sharing has not stopped yet. Please stop it again." = "Die Freigabe wurde noch nicht beendet. Bitte erneut stoppen.";
+"The Cloudflare client is missing from this installation. Please download and reinstall the app." = "Der Cloudflare-Client fehlt in dieser Installation. Bitte lade die App erneut herunter und installiere sie neu.";
+"The app is quitting." = "Die App wird gerade beendet.";
+"The server or its port is no longer active. Please try again." = "Der Server oder sein Port ist nicht mehr aktiv. Bitte erneut versuchen.";
+
+/* MARK: Sources/PortsCore/CloudflareTunnelManager.swift */
+"Cloudflare is not responding. Check your connection and try again." = "Cloudflare antwortet nicht. Bitte Verbindung prüfen und erneut versuchen.";
+"The Cloudflare connection ended. Please try again." = "Die Cloudflare-Verbindung wurde beendet. Bitte erneut versuchen.";
+"The server or port stopped. Sharing was closed." = "Server oder Port beendet. Die Freigabe wurde geschlossen.";
+
+/* MARK: Sources/PortsCore/CommandRunner.swift */
+
+/* MARK: Sources/PortsCore/LaunchConfiguration.swift */
+"Choose an existing project folder with an absolute path." = "Wähle einen vorhandenen Projektordner mit absolutem Pfad.";
+"Please enter a valid command." = "Bitte gib einen gültigen Befehl ein.";
+"Please give the action a name." = "Bitte gib der Aktion einen Namen.";
+"The settings file was created by a newer version." = "Die Einstellungsdatei stammt aus einer neueren Version.";
+
+/* MARK: Sources/PortsCore/LaunchManager.swift */
+
+/* MARK: Sources/PortsCore/ProcessInspector.swift */
+"The action could not be completed (system error %d)." = "Die Aktion konnte nicht ausgeführt werden (Systemfehler %d).";
+"The process has already ended or its identity changed. The list will refresh." = "Der Prozess wurde bereits beendet oder seine Identität hat sich geändert. Die Liste wird aktualisiert.";
+"The process list is changing too quickly. Please scan again." = "Die Prozessliste ändert sich zu schnell. Bitte erneut scannen.";
+"The process list is not available." = "Die Prozessliste ist nicht verfügbar.";
+"The system query exceeded the safe output limit." = "Die Systemabfrage hat das sichere Ausgabelimit überschritten.";
+"The system query took too long. The next scan will try again." = "Die Systemabfrage hat zu lange gedauert. Der nächste Scan versucht es erneut.";
+"This process is protected. Open its app to manage it there." = "Dieser Prozess ist geschützt. Öffne die zugehörige App, um ihn dort zu verwalten.";
+
+/* MARK: Sources/PortsCore/ProcessScanner.swift */
+"The TCP listeners could not be queried." = "Die TCP-Listener konnten nicht abgefragt werden.";
+
+/* MARK: Sources/PortsCore/ReleaseChecker.swift */
+"The update response could not be verified. Please try again later." = "Die Update-Antwort konnte nicht geprüft werden. Bitte versuche es später erneut.";
+"Updates are not reachable right now. Check your connection and try again." = "Updates sind gerade nicht erreichbar. Bitte prüfe deine Verbindung und versuche es erneut.";
+
+/* MARK: Sources/PortsCore/ServiceClassifier.swift */
+"Codex service" = "Codex-Dienst";
+"Static server" = "Statischer Server";

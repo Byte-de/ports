@@ -6,11 +6,11 @@ import SwiftUI
 @MainActor
 struct PortsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    @State private var model = MonitorModel()
+    private var model: MonitorModel { delegate.model }
 
     var body: some Scene {
-        Window("Byte Ports", id: "monitor") {
-            MonitorWindow(model: model).onAppear { delegate.model = model }
+        Window(AppInfo.name, id: "monitor") {
+            MonitorWindow(model: model)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -63,18 +63,43 @@ struct PortsApp: App {
         MenuBarExtra {
             CompactMonitorView(model: model)
         } label: {
-            Label("\(model.agents.count + model.servers.count)", systemImage: "point.3.connected.trianglepath.dotted")
+            MenuBarLabel(model: model)
         }.menuBarExtraStyle(.window)
+    }
+}
+
+/// Alive from launch, unlike the main window, so it owns the window opener.
+struct MenuBarLabel: View {
+    let model: MonitorModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Label {
+            Text(model.counts.total, format: .number)
+        } icon: {
+            Image(systemName: "point.3.connected.trianglepath.dotted")
+        }
+        .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var model: MonitorModel?
+    let model = MonitorModel()
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        model.startMonitoring()
+        PanelWindowCoordinator.shared.configureNotch(model: model)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        model.showMainWindow()
+        return false
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let model else { return .terminateNow }
         guard !model.isQuitting else { return .terminateLater }
         if model.launches.contains(where: { $0.state == .running }) {
             let alert = NSAlert()
@@ -95,7 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch {
                 await model.tunnels.resumeAfterCancelledQuit()
                 model.isQuitting = false
-                model.errorMessage = error.localizedDescription
+                model.report(error, as: .quit)
                 model.revealWindow?()
                 sender.reply(toApplicationShouldTerminate: false)
             }

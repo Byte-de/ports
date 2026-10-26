@@ -16,14 +16,20 @@ public struct NativeProcessInspector: ProcessInspecting {
         for _ in 0..<3 {
             var pids = [Int32](repeating: 0, count: capacity)
             let count = pids.withUnsafeMutableBufferPointer { ds_list_pids($0.baseAddress, Int32(capacity)) }
-            guard count >= 0 else { throw MonitorError.scanFailed("Die Prozessliste ist nicht verfügbar.") }
+            guard count >= 0 else {
+                throw MonitorError.scanFailed(
+                    String(localized: "The process list is not available.", comment: "Scan error"))
+            }
             if count >= capacity {
                 capacity *= 2
                 continue
             }
             return pids.prefix(Int(count)).compactMap { process(pid: $0) }
         }
-        throw MonitorError.scanFailed("Die Prozessliste ändert sich zu schnell. Bitte erneut scannen.")
+        throw MonitorError.scanFailed(
+            String(
+                localized: "The process list is changing too quickly. Please scan again.",
+                comment: "Scan error when processes appear faster than they can be listed"))
     }
 
     public func process(pid: Int32) -> ProcessRecord? {
@@ -71,11 +77,25 @@ public enum MonitorError: LocalizedError, Sendable, Equatable {
         switch self {
         case .scanFailed(let message), .launchFailed(let message): message
         case .processChanged:
-            "Der Prozess wurde bereits beendet oder seine Identität hat sich geändert. Die Liste wird aktualisiert."
-        case .protectedProcess: "Dieser Prozess ist geschützt. Öffne die zugehörige App, um ihn dort zu verwalten."
-        case .signalFailed(let code): "Die Aktion konnte nicht ausgeführt werden (Systemfehler \(code))."
-        case .timedOut: "Die Systemabfrage hat zu lange gedauert. Der nächste Scan versucht es erneut."
-        case .outputLimit: "Die Systemabfrage hat das sichere Ausgabelimit überschritten."
+            String(
+                localized: "The process has already ended or its identity changed. The list will refresh.",
+                comment: "Error when a process action targets a process that is gone or was replaced")
+        case .protectedProcess:
+            String(
+                localized: "This process is protected. Open its app to manage it there.",
+                comment: "Error when stopping a process that belongs to a desktop app")
+        case .signalFailed(let code):
+            String(
+                localized: "The action could not be completed (system error \(code)).",
+                comment: "Error when signalling a process failed; the argument is the errno code")
+        case .timedOut:
+            String(
+                localized: "The system query took too long. The next scan will try again.",
+                comment: "Error when a system query for processes or listeners did not finish in time")
+        case .outputLimit:
+            String(
+                localized: "The system query exceeded the safe output limit.",
+                comment: "Error when a system query for processes or listeners produced too much output")
         }
     }
 }

@@ -24,6 +24,11 @@ struct PortsDiagnostics {
             try await tunnelIntegration(app: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
         } else if CommandLine.arguments.contains("--integration") {
             try await integration()
+        } else if let index = CommandLine.arguments.firstIndex(of: "--benchmark") {
+            guard CommandLine.arguments.indices.contains(index + 1),
+                let scans = Int(CommandLine.arguments[index + 1]), scans > 0
+            else { throw MonitorError.scanFailed("Usage: ports-diagnostics --benchmark <scans>") }
+            try await benchmark(scans: scans)
         } else {
             let snapshot = try await ProcessScanner().scan()
             let counts: [String: Any] = [
@@ -37,6 +42,57 @@ struct PortsDiagnostics {
             print(String(decoding: data, as: UTF8.self))
         }
     }
+
+    /// Repeated scans with one scanner, like the app's scan loop. The first scan only warms
+    /// per-process state and is not reported. Children CPU covers spawned tools such as lsof.
+    private static func benchmark(scans: Int) async throws {
+        let scanner = ProcessScanner()
+        let clock = ContinuousClock()
+        var snapshot = try await scanner.scan()
+        var wall: [Double] = []
+        var selfCPU = 0.0
+        var childrenCPU = 0.0
+        for _ in 0..<scans {
+            let selfBefore = cpuMilliseconds(RUSAGE_SELF)
+            let childrenBefore = cpuMilliseconds(RUSAGE_CHILDREN)
+            let start = clock.now
+            snapshot = try await scanner.scan()
+            wall.append(start.duration(to: clock.now) / .milliseconds(1))
+            selfCPU += cpuMilliseconds(RUSAGE_SELF) - selfBefore
+            childrenCPU += cpuMilliseconds(RUSAGE_CHILDREN) - childrenBefore
+            // Without listener discovery the timings would not describe a real scan.
+            if let warning = snapshot.warning { throw MonitorError.scanFailed(warning) }
+        }
+        wall.sort()
+        // Nearest-rank percentile.
+        func percentile(_ percent: Int) -> Double { rounded(wall[max(0, (wall.count * percent + 99) / 100 - 1)]) }
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        let report = BenchmarkReport(
+            scans: scans, processes: snapshot.processCount, services: snapshot.services.count,
+            wallMilliseconds: .init(p50: percentile(50), p95: percentile(95), max: rounded(wall[wall.count - 1])),
+            cpuMillisecondsPerScan: .init(
+                self: rounded(selfCPU / Double(scans)), children: rounded(childrenCPU / Double(scans))),
+            // Darwin reports ru_maxrss in bytes.
+            maxResidentMegabytes: rounded(Double(usage.ru_maxrss) / 1_048_576))
+        // JSONEncoder prints the shortest decimal form; JSONSerialization would print 78.400000000000006.
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        print(String(decoding: try encoder.encode(report), as: UTF8.self))
+    }
+
+    /// User plus system CPU time; RUSAGE_CHILDREN only counts children that were already reaped.
+    private static func cpuMilliseconds(_ who: Int32) -> Double {
+        var usage = rusage()
+        getrusage(who, &usage)
+        return milliseconds(usage.ru_utime) + milliseconds(usage.ru_stime)
+    }
+
+    private static func milliseconds(_ time: timeval) -> Double {
+        Double(time.tv_sec) * 1000 + Double(time.tv_usec) / 1000
+    }
+
+    private static func rounded(_ value: Double) -> Double { (value * 10).rounded() / 10 }
 
     private static func integration() async throws {
         let launcher = LaunchManager()
@@ -227,4 +283,14 @@ struct PortsDiagnostics {
             }
         }
     }
+}
+
+/// Output of --benchmark. Keep the keys stable so recorded baselines stay comparable.
+private struct BenchmarkReport: Encodable {
+    struct Percentiles: Encodable { let p50, p95, max: Double }
+    struct CPUPerScan: Encodable { let `self`, children: Double }
+    let scans, processes, services: Int
+    let wallMilliseconds: Percentiles
+    let cpuMillisecondsPerScan: CPUPerScan
+    let maxResidentMegabytes: Double
 }
