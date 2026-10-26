@@ -2,12 +2,12 @@
 
 ## 1.0.0
 
-First public release of Byte Relay.
+First public release of Byte Ports.
 
 - Discover local development servers, AI agents and TCP listeners.
 - Organise services by project, save favourites and reusable launch actions.
 - Control owned processes with PID-reuse protection and confirmation before stopping.
-- View managed service logs and restart services launched by Relay.
+- View managed service logs and restart services launched by Ports.
 - Use the menu bar, a compact window or the optional notch panel.
 - Share local HTTP previews through Cloudflare Quick Tunnels with a first-use
   public-access notice, visible status, copied links and explicit stop controls.

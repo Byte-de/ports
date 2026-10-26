@@ -12,8 +12,8 @@ jobs:
       - name: Check Swift formatting
         run: xcrun swift-format lint --strict --recursive Sources Tests Package.swift
       - name: Build release app
-        run: Scripts/build-app.sh "$RUNNER_TEMP/Byte Relay.app"
+        run: Scripts/build-app.sh "$RUNNER_TEMP/Byte Ports.app"
       - name: Validate bundle
         run: |
-          codesign --verify --deep --strict "$RUNNER_TEMP/Byte Relay.app"
-          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$RUNNER_TEMP/Byte Relay.app/Contents/Info.plist")" = de.byte.relay
+          codesign --verify --deep --strict "$RUNNER_TEMP/Byte Ports.app"
+          test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$RUNNER_TEMP/Byte Ports.app/Contents/Info.plist")" = de.byte.ports

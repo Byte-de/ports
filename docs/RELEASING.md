@@ -1,4 +1,4 @@
-# Releasing Byte Relay
+# Releasing Byte Ports
 
 ## Version and support policy
 
@@ -29,7 +29,7 @@ published when signing, notarization, stapling or Gatekeeper assessment fails.
 
 ```sh
 SIGN_IDENTITY='Developer ID Application: YOUR ORGANISATION (TEAMID)' \
-NOTARY_PROFILE=BYTE_NOTARY Scripts/release.sh /tmp/relay-release
+NOTARY_PROFILE=BYTE_NOTARY Scripts/release.sh /tmp/ports-release
 ```
 
 The script checks credentials, tests, builds, signs all executables with Hardened
@@ -50,9 +50,9 @@ Do not remove quarantine attributes or disable Gatekeeper.
 2. Tag that exact commit `vX.Y.Z` and push the tag.
 3. Run the Release workflow for the tag, or upload locally verified assets with
    `gh release create --verify-tag --notes-file`.
-4. Keep the download asset named **Byte-Relay.dmg** for the stable latest-download URL.
-5. Generate the cask with `Scripts/prepare-homebrew.sh /tmp/relay-release/Byte-Relay.dmg /tmp/byte-relay.rb`, then add it to `Byte-de/homebrew-tap` as `Casks/byte-relay.rb`. The helper rejects an unnotarized DMG.
-6. Update and deploy the separate Relay website; set `released: true` only after
+4. Keep the download asset named **Byte-Ports.dmg** for the stable latest-download URL.
+5. Generate the cask with `Scripts/prepare-homebrew.sh /tmp/ports-release/Byte-Ports.dmg /tmp/byte-ports.rb`, then add it to `Byte-de/homebrew-tap` as `Casks/byte-ports.rb`. The helper rejects an unnotarized DMG.
+6. Update and deploy the separate Ports website; set `released: true` only after
    the download and tap resolve. The website must not advertise unavailable assets.
 7. Verify HTTPS, download checksum, site links and the app's manual update check.
 

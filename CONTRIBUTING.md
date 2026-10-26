@@ -8,7 +8,7 @@ problem or a concrete improvement before starting a large feature.
 3. Test the affected interaction with an isolated `--state-directory`.
 4. Update the changelog and documentation when user-visible behaviour changes.
 
-Keep process and tunnel logic in RelayCore. Never act on PID alone: preserve the
+Keep process and tunnel logic in PortsCore. Never act on PID alone: preserve the
 process start identity and owner checks. Tests may stop only processes they
 created. Do not make tests depend on a real user's services or public tunnels.
 

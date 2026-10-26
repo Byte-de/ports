@@ -1,11 +1,11 @@
 name: Bug report
-description: Report a reproducible problem in Byte Relay.
+description: Report a reproducible problem in Byte Ports.
 body:
   - type: input
     id: version
     attributes:
-      label: Byte Relay and macOS versions
-      placeholder: Byte Relay 1.0.0 · macOS 26.x · Apple M-series
+      label: Byte Ports and macOS versions
+      placeholder: Byte Ports 1.0.0 · macOS 26.x · Apple M-series
     validations:
       required: true
   - type: textarea

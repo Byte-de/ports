@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           umask 077
-          keychain="$RUNNER_TEMP/relay-signing.keychain-db"
+          keychain="$RUNNER_TEMP/ports-signing.keychain-db"
           password="$(openssl rand -hex 32)"
           printf '%s' "$CERT" | base64 --decode > "$RUNNER_TEMP/signing.p12"
           printf '%s' "$API_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
@@ -64,9 +64,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" --verify-tag --title "Byte Relay ${RELEASE_TAG#v}" --notes-file CHANGELOG.md "$RUNNER_TEMP/release/Byte-Relay.dmg" "$RUNNER_TEMP/release/SHA256SUMS"
+          gh release create "$RELEASE_TAG" --verify-tag --title "Byte Ports ${RELEASE_TAG#v}" --notes-file CHANGELOG.md "$RUNNER_TEMP/release/Byte-Ports.dmg" "$RUNNER_TEMP/release/SHA256SUMS"
       - name: Remove signing material
         if: always()
         run: |
-          security delete-keychain "$RUNNER_TEMP/relay-signing.keychain-db" 2>/dev/null || true
+          security delete-keychain "$RUNNER_TEMP/ports-signing.keychain-db" 2>/dev/null || true
           rm -f "$RUNNER_TEMP/signing.p12" "$RUNNER_TEMP/notary.p8"

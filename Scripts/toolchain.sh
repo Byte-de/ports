@@ -8,8 +8,8 @@ if [[ -z "${DEVELOPER_DIR:-}" && "${GITHUB_ACTIONS:-}" == "true" ]]; then
 elif [[ -z "${DEVELOPER_DIR:-}" && -d /Library/Developer/CommandLineTools ]]; then
   export DEVELOPER_DIR=/Library/Developer/CommandLineTools
 fi
-if [[ -n "${RELAY_SDK:-}" ]]; then
-  sdk_path="$RELAY_SDK"
+if [[ -n "${PORTS_SDK:-}" ]]; then
+  sdk_path="$PORTS_SDK"
 elif [[ "${DEVELOPER_DIR:-}" == */CommandLineTools && -d "$DEVELOPER_DIR/SDKs/MacOSX26.5.sdk" ]]; then
   # Some CLT previews ship an SDK 27 State macro without the SwiftUI macro plugin.
   # The stable SDK uses property wrappers and supports our macOS 26 deployment target.
@@ -20,7 +20,7 @@ fi
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Keep generated bundles out of cloud-synced source folders: Finder metadata on
 # .xctest bundles can otherwise invalidate Apple's code-signing step.
-build_directory="${RELAY_BUILD_DIR:-${TMPDIR:-/tmp}/relay-build-$(id -u)}"
+build_directory="${PORTS_BUILD_DIR:-${TMPDIR:-/tmp}/ports-build-$(id -u)}"
 mkdir -p "$build_directory"
 export CLANG_MODULE_CACHE_PATH="$build_directory/module-cache"
 swift_options=(--disable-sandbox --sdk "$sdk_path" --package-path "$project_root" --scratch-path "$build_directory"

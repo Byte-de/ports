@@ -1,6 +1,6 @@
 # Security
 
-Only the latest stable Byte Relay release receives fixes. Please report sensitive
+Only the latest stable Byte Ports release receives fixes. Please report sensitive
 vulnerabilities privately to **kontakt@byte.de** with the affected version,
 reproduction steps and expected impact. Do not include private keys, tokens,
 project secrets, personal logs or a still-active public preview URL.
@@ -8,7 +8,7 @@ project secrets, personal logs or a still-active public preview URL.
 For ordinary bugs, use GitHub Issues. Check and redact command lines, project
 paths and service logs before sharing them.
 
-Relay controls only processes owned by the logged-in user and revalidates their
+Ports controls only processes owned by the logged-in user and revalidates their
 identity before sending signals. It never requests root access. A Cloudflare
 share is intentionally public; possession of the link is sufficient for access.
 The app does not add authentication to the shared development server.

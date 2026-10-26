@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Byte Relay</string>
+	<string>Byte Ports</string>
 	<key>CFBundleDisplayName</key>
-	<string>Byte Relay</string>
+	<string>Byte Ports</string>
 	<key>CFBundleIdentifier</key>
-	<string>de.byte.relay</string>
+	<string>de.byte.ports</string>
 	<key>CFBundleExecutable</key>
-	<string>ByteRelay</string>
+	<string>BytePorts</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -17,7 +17,7 @@
 	<key>CFBundleVersion</key>
 	<string>2</string>
 	<key>CFBundleIconFile</key>
-	<string>ByteRelay</string>
+	<string>BytePorts</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
 	<key>NSHighResolutionCapable</key>

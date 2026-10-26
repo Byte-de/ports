@@ -25,7 +25,7 @@ is a release follow-up, not an inferred result.
 - Update metadata tests: numeric semantic versions, no downgrade, invalid versions,
   draft/prerelease rejection, malformed/oversized response and untrusted URL rejection.
 - Migration preserves the prototype file, retains user settings, rejects malformed
-  data and gives existing Relay preferences precedence. Sharing consent defaults off.
+  data and gives existing Ports preferences precedence. Sharing consent defaults off.
 - A 30-second foreground sample (15 measurements) averaged 2.37% app-process CPU,
   peaked at 13.8%, and reached 137.1 MB RSS. This is a short functional sample,
   not an energy benchmark; spawned scanner tools are not included.

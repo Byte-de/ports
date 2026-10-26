@@ -1,11 +1,11 @@
-# Byte Relay
+# Byte Ports
 
 Your dev setup. At a glance.
 
 A native macOS utility for discovering and managing local development servers,
 AI agents and projects. Built with SwiftUI and AppKit. Free and open source.
 
-[Website](https://relay.byte.de) · [Releases](https://github.com/Byte-de/relay/releases) · [Report a bug](https://github.com/Byte-de/relay/issues)
+[Website](https://ports.byte.de) · [Releases](https://github.com/Byte-de/ports/releases) · [Report a bug](https://github.com/Byte-de/ports/issues)
 
 ## Requirements
 
@@ -27,29 +27,29 @@ container internals are outside the supported release scope.
 
 ## Install
 
-Download the **Byte-Relay.dmg** asset from a published GitHub release and drag
-**Byte Relay.app** into Applications. Public release assets are Developer ID
+Download the **Byte-Ports.dmg** asset from a published GitHub release and drag
+**Byte Ports.app** into Applications. Public release assets are Developer ID
 signed, notarized and stapled. Do not bypass Gatekeeper to install a build.
 
 Once the 1.0.0 release is published, the Byte Homebrew tap also provides:
 
 ```sh
-brew install --cask byte-de/tap/byte-relay
+brew install --cask byte-de/tap/byte-ports
 ```
 
 ## Privacy and sharing
 
-Discovery reads your user's local process information and TCP listeners. Relay
+Discovery reads your user's local process information and TCP listeners. Ports
 has no account, telemetry, chat-content access or API-key access. Preferences,
 project paths and launch commands are stored locally. Logs from app-launched
 services are buffered in memory; external processes do not expose historical
-stdout through Relay. Activity is session-local and bounded.
+stdout through Ports. Activity is session-local and bounded.
 
 Sharing starts only after a user action and a first-use explanation. It exposes
 the selected HTTP server through Cloudflare to **anyone with the link**. There is
-no additional authentication in Relay 1.0.0. Stop sharing from the service row;
-quitting Relay also stops its tunnels. The bundled supervisor stops the tunnel
-if Relay exits unexpectedly. No existing cloudflared configuration is changed.
+no additional authentication in Ports 1.0.0. Stop sharing from the service row;
+quitting Ports also stops its tunnels. The bundled supervisor stops the tunnel
+if Ports exits unexpectedly. No existing cloudflared configuration is changed.
 Do not share secrets, private source trees or unprotected admin interfaces.
 
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
@@ -60,7 +60,7 @@ disabling host checks globally.
 
 Only the manual update check contacts GitHub. Download and installation remain
 under your control; there is no automatic installer. The website's
-[privacy notice](https://relay.byte.de/datenschutz/) describes hosting and these
+[privacy notice](https://ports.byte.de/datenschutz/) describes hosting and these
 optional network connections.
 
 ## Build and test
@@ -70,35 +70,36 @@ selection; they never change global Xcode settings.
 
 ```sh
 Scripts/check.sh
-Scripts/build-app.sh "/tmp/relay-local/Byte Relay.app"
+Scripts/build-app.sh "/tmp/ports-local/Byte Ports.app"
 ```
 
 Local builds use ad-hoc signing by default. A public release requires a Developer
 ID identity and notarization credentials; see [Releasing](docs/RELEASING.md).
 Generated products and caches stay outside the source directory. Override with
-`RELAY_BUILD_DIR`, `RELAY_SDK`, `DEVELOPER_DIR` or `RELAY_CONFIGURATION` as needed.
+`PORTS_BUILD_DIR`, `PORTS_SDK`, `DEVELOPER_DIR` or `PORTS_CONFIGURATION` as needed.
 
 For isolated manual testing, launch the executable with
-`--state-directory /tmp/relay-test-state`. `--demo` uses sample data and disables
+`--state-directory /tmp/ports-test-state`. `--demo` uses sample data and disables
 process actions and sharing. `--onboarding` opens the introduction. Debug-only
-motion inspection uses `RELAY_MOTION_PREVIEW`; release builds ignore it.
+motion inspection uses `PORTS_MOTION_PREVIEW`; release builds ignore it.
 
 ## Data and migration
 
-Preferences live in `~/Library/Application Support/Byte Relay/preferences.json`
-with user-only permissions. The first launch can migrate settings from the
-internal prototype's `DevScope` directory without removing its original file.
-Existing Relay settings take precedence. Invalid or newer-format files are
+Preferences live in `~/Library/Application Support/Byte Ports/preferences.json`
+with user-only permissions. The first launch can migrate settings from
+pre-release builds named Byte Relay (`Byte Relay` directory) or, failing that,
+the internal prototype's `DevScope` directory, without removing the original
+file. Existing Byte Ports settings take precedence. Invalid or newer-format files are
 preserved and saving is disabled until the problem is resolved. Back up the file
 before repairing or removing it; restarting the app then retries loading.
 
 ## Architecture
 
-`RelayCore` contains discovery, parsing, process identity validation, persistence,
+`PortsCore` contains discovery, parsing, process identity validation, persistence,
 tunnel lifecycle, release metadata validation and deterministic transition state.
-`RelayApp` owns the SwiftUI UI and AppKit presentation coordination. `ProcessBridge`
+`PortsApp` owns the SwiftUI UI and AppKit presentation coordination. `ProcessBridge`
 provides narrow C access to macOS process APIs. `TunnelRunner` supervises only the
-cloudflared process started by Relay. `RelayDiagnostics` provides fixture-based
+cloudflared process started by Ports. `PortsDiagnostics` provides fixture-based
 integration checks. No privileged daemon or shell installer is used.
 
 A listener is evidence of an open port, not an HTTP health check. Agent detection

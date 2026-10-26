@@ -2,20 +2,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "ByteRelay",
+    name: "BytePorts",
     platforms: [.macOS("26.0")],
     products: [
-        .executable(name: "ByteRelay", targets: ["RelayApp"]),
-        .executable(name: "relay-diagnostics", targets: ["RelayDiagnostics"]),
-        .executable(name: "relay-tunnel-runner", targets: ["TunnelRunner"]),
-        .library(name: "RelayCore", targets: ["RelayCore"]),
+        .executable(name: "BytePorts", targets: ["PortsApp"]),
+        .executable(name: "ports-diagnostics", targets: ["PortsDiagnostics"]),
+        .executable(name: "ports-tunnel-runner", targets: ["TunnelRunner"]),
+        .library(name: "PortsCore", targets: ["PortsCore"]),
     ],
     targets: [
         .target(name: "ProcessBridge", publicHeadersPath: "include"),
         .executableTarget(name: "TunnelRunner"),
-        .target(name: "RelayCore", dependencies: ["ProcessBridge"]),
-        .executableTarget(name: "RelayApp", dependencies: ["RelayCore"]),
-        .executableTarget(name: "RelayDiagnostics", dependencies: ["RelayCore"]),
-        .testTarget(name: "RelayCoreTests", dependencies: ["RelayCore"]),
+        .target(name: "PortsCore", dependencies: ["ProcessBridge"]),
+        .executableTarget(name: "PortsApp", dependencies: ["PortsCore"]),
+        .executableTarget(name: "PortsDiagnostics", dependencies: ["PortsCore"]),
+        .testTarget(name: "PortsCoreTests", dependencies: ["PortsCore"]),
     ]
 )
