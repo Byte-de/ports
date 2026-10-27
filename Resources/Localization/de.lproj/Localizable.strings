@@ -100,6 +100,10 @@
 "Desktop app" = "Desktop-App";
 "The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
 
+/* MARK: Sources/PortsApp/StatusItemMenu.swift */
+"Open %@" = "%@ öffnen";
+"Settings…" = "Einstellungen…";
+
 /* MARK: Sources/PortsApp/TunnelModel.swift */
 
 /* MARK: Sources/PortsApp/TunnelViews.swift */

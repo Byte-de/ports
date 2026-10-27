@@ -79,6 +79,35 @@ struct PanelGlass: View {
     }
 }
 
+/// MenuBarExtra draws Liquid Glass of its own behind the panel, in the system appearance, which showed as a light
+/// frame around a dark card with a different corner radius. The menu panel therefore fills that glass edge to edge
+/// and darkens it, so the system's shape is the only one.
+struct MenuPanelBackground: View {
+    private var accessibility = PanelAccessibility()
+
+    init() {}
+
+    var body: some View {
+        if accessibility.reduceTransparency {
+            DS.background
+        } else {
+            LinearGradient(colors: [.black.opacity(0.92), .black.opacity(0.70)], startPoint: .top, endPoint: .bottom)
+        }
+    }
+}
+
+/// Gives the menu extra's window the dark appearance before it first draws, so its glass matches the panel.
+struct MenuWindowAppearance: NSViewRepresentable {
+    final class AppearanceView: NSView {
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            super.viewWillMove(toWindow: newWindow)
+            newWindow?.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+    func makeNSView(context: Context) -> AppearanceView { AppearanceView() }
+    func updateNSView(_ view: AppearanceView, context: Context) {}
+}
+
 /// Configure only our own SwiftUI window, never the menu extra or another app's window.
 struct FloatingWindowStyle: NSViewRepresentable {
     final class WindowView: NSView {
@@ -113,10 +142,18 @@ struct ServiceIcon: View {
     let service: ServiceRecord
     var size: CGFloat = 24
     var body: some View {
-        Image(systemName: DS.symbol(service))
-            .font(.system(size: size * 0.7, weight: .regular))
-            .foregroundStyle(DS.tint(service)).frame(width: size, height: size)
-            .accessibilityHidden(true)
+        Group {
+            if let logo = service.provider.flatMap({ AgentLogo.image(for: $0.id) }) {
+                Image(nsImage: logo).renderingMode(logo.isTemplate ? .template : .original)
+                    .resizable().interpolation(.high).aspectRatio(contentMode: .fit)
+                    .frame(width: size * 0.72, height: size * 0.72).foregroundStyle(DS.text)
+            } else {
+                Image(systemName: DS.symbol(service))
+                    .font(.system(size: size * 0.7, weight: .regular)).foregroundStyle(DS.tint(service))
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 
@@ -309,4 +346,23 @@ struct Sparkline: View {
             }.stroke(tint, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
         }.accessibilityLabel("CPU-Verlauf aus \(values.count) Messungen")
     }
+}
+
+extension DS {
+    /// The app's glyph in the menu bar: a network port. It is drawn from SVG, which needs no asset catalog, and is a
+    /// template, so the menu bar tints it.
+    @MainActor static let portGlyph: NSImage = {
+        let svg = """
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><path fill-rule="evenodd" d="M4.5 2.5H13.5\
+            A2 2 0 0 1 15.5 4.5V11A2 2 0 0 1 13.5 13H12V14.5A1 1 0 0 1 11 15.5H7A1 1 0 0 1 6 14.5V13H4.5A2 2 0 0 1 2.5 11\
+            V4.5A2 2 0 0 1 4.5 2.5Z M4.8 4.5h1.2v3h-1.2z M7.2 4.5h1.2v3h-1.2z M9.6 4.5h1.2v3h-1.2z M12 4.5h1.2v3h-1.2z"/>\
+            </svg>
+            """
+        let image =
+            NSImage(data: Data(svg.utf8))
+            ?? NSImage(systemSymbolName: "network", accessibilityDescription: nil) ?? NSImage()
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = true
+        return image
+    }()
 }

@@ -36,13 +36,29 @@ final class PanelWindowCoordinator: NSObject {
         if window.isKeyWindow || (surface == .menu && window.isVisible) { _ = activate(surface) }
     }
 
+    /// Runs at launch, after onboarding and when the setting changes. An enabled notch takes the panel over from the
+    /// window, so it never opens in the middle of the screen; disabling an expanded notch hands it back.
     func configureNotch(model: MonitorModel) {
         self.model = model
         let wasExpanded = presentation.active == .notch
-        presentation.configureNotch(model.preferences.showNotch)
+        let owner = model.hasBlockingPanelDialog ? model.presentationSurface : nil
+        presentation.configureNotch(model.preferences.showNotch, dialogOwner: owner)
         if model.onboardingSession != nil { presentation.activate(.window) }
-        applyVisibility()
+        let movedToNotch = !wasExpanded && presentation.active == .notch
+        if movedToNotch { model.presentationSurface = .notch }
+        applyVisibility(animated: movedToNotch && PanelMotion.animatesInteraction)
         if wasExpanded && !model.preferences.showNotch { model.revealWindow?() }
+    }
+
+    /// While the notch is the panel's home, showing the app expands it instead of opening the window.
+    func revealNotchIfHome() -> Bool {
+        guard let model, presentation.home == .notch, model.onboardingSession == nil else { return false }
+        if presentation.active == .notch {
+            NotchController.shared.raise()
+        } else {
+            _ = activate(.notch, animated: PanelMotion.animatesInteraction)
+        }
+        return true
     }
 
     func prepareMainWindow() -> Bool { activate(.window) }
@@ -78,16 +94,15 @@ final class PanelWindowCoordinator: NSObject {
     func dialogSurface(from requested: MonitorSurface) -> MonitorSurface {
         if requested == .menu {
             model?.revealWindow?()
-            return .window
+            return presentation.active == .notch ? .notch : .window
         }
         return requested
     }
 
     func showLaunch(model: MonitorModel) {
         self.model = model
-        let surface: MonitorSurface = presentation.active == .notch ? .notch : .window
-        if surface == .window { model.revealWindow?() }
-        model.presentLaunch(from: surface)
+        if presentation.active != .notch { model.revealWindow?() }
+        model.presentLaunch(from: presentation.active == .notch ? .notch : .window)
     }
 
     @discardableResult private func activate(_ surface: MonitorSurface, animated: Bool = false) -> Bool {

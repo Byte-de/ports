@@ -7,6 +7,7 @@ import SwiftUI
 struct PortsApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     private var model: MonitorModel { delegate.model }
+    private var opensInNotch: Bool { model.preferences.showNotch && model.onboardingSession == nil }
 
     var body: some Scene {
         Window(AppInfo.name, id: "monitor") {
@@ -15,6 +16,9 @@ struct PortsApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
         .defaultSize(width: 504, height: 362)
+        // With the notch enabled the panel opens there at launch, so the window must not appear first.
+        .defaultLaunchBehavior(opensInNotch ? .suppressed : .presented)
+        .restorationBehavior(opensInNotch ? .disabled : .automatic)
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Nach Updates suchen…") {
@@ -80,7 +84,7 @@ struct MenuBarLabel: View {
         Label {
             Text(model.counts.total, format: .number)
         } icon: {
-            Image(systemName: "point.3.connected.trianglepath.dotted")
+            Image(nsImage: DS.portGlyph)
         }
         .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
     }
@@ -98,6 +102,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.startMonitoring()
         PanelWindowCoordinator.shared.configureNotch(model: model)
+        StatusItemMenu.shared.install(model: model)
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {

@@ -180,6 +180,7 @@ final class MonitorModel {
     /// without one. A reveal requested before either appeared runs on the first binding.
     func bindWindowOpener(_ open: @escaping () -> Void) {
         revealWindow = {
+            if PanelWindowCoordinator.shared.revealNotchIfHome() { return }
             guard PanelWindowCoordinator.shared.prepareMainWindow() else { return }
             open()
             NSApp.activate()
@@ -192,6 +193,8 @@ final class MonitorModel {
     }
 
     func showMainWindow() {
+        // The notch needs no window opener.
+        if PanelWindowCoordinator.shared.revealNotchIfHome() { return }
         guard let revealWindow else {
             windowRevealPending = true
             PortsLog.lifecycle.error("Main window requested before any view bound the window opener")

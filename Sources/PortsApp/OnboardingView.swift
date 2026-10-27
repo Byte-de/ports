@@ -296,7 +296,7 @@ private struct AccessChoice: View {
                     } else {
                         HStack(spacing: 3) {
                             Circle().fill(DS.muted).frame(width: 3, height: 3)
-                            Image(systemName: "point.3.connected.trianglepath.dotted").font(.system(size: 6))
+                            Image(nsImage: DS.portGlyph).renderingMode(.template).resizable().frame(width: 7, height: 7)
                         }.foregroundStyle(DS.muted).frame(maxWidth: .infinity, alignment: .trailing).padding(8)
                         miniaturePanel.frame(width: 110, height: 53).padding(.top, 29)
                     }

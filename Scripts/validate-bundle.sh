@@ -22,6 +22,14 @@ for helper in cloudflared ports-tunnel-runner; do
   /usr/bin/codesign --verify --strict "$app/Contents/Helpers/$helper"
 done
 [[ -f "$app/Contents/Resources/ThirdParty/cloudflared-LICENSE.txt" ]] || fail 'cloudflared licence is missing'
+[[ -f "$app/Contents/Resources/ThirdParty/agent-logos.txt" ]] || fail 'agent logo notices are missing'
+for logo in "$project_root/Resources/AgentLogos/"*.svg; do
+  [[ -f "$app/Contents/Resources/AgentLogos/$(basename "$logo")" ]] || fail "AgentLogos/$(basename "$logo") is missing"
+done
+# Logos render in-process through NSImage, so they must stay inert: no scripts and nothing fetched from outside.
+if /usr/bin/grep -l -i -E '<script|<foreignObject|href="(https?:|//)' "$app/Contents/Resources/AgentLogos/"*.svg; then
+  fail 'an agent logo contains a script or an external reference'
+fi
 # English is the source language in code; German comes from the packaged tables.
 for table in de.lproj/Localizable.strings de.lproj/Localizable.stringsdict en.lproj/Localizable.stringsdict; do
   [[ -f "$app/Contents/Resources/$table" ]] || fail "Contents/Resources/$table is missing"

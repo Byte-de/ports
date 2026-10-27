@@ -10,10 +10,12 @@ struct CompactMonitorView: View {
                     Button("Einführung öffnen") { model.revealWindow?() }.buttonStyle(QuietButton())
                 }.padding(20).frame(width: 310).foregroundStyle(DS.text).preferredColorScheme(.dark)
             } else {
-                MonitorPanel(model: model, surface: .menu)
+                MonitorPanel(model: model, surface: .menu, drawsSurface: false)
                     .padding(10)
             }
         }
+        .background { MenuPanelBackground() }
+        .background(MenuWindowAppearance())
         .background(PanelWindowRegistration(surface: .menu, model: model))
         .onAppear { PanelWindowCoordinator.shared.menuAppeared(model: model) }
     }

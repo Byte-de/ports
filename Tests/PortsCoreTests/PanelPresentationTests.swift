@@ -3,11 +3,27 @@ import Testing
 @testable import PortsCore
 
 struct PanelPresentationTests {
-    @Test func enablingNotchKeepsExistingWindowAndStartsCollapsed() {
+    @Test func enablingNotchMovesWindowPanelToNotch() {
         var state = PanelPresentation()
+        #expect(state.home == .window)
         state.configureNotch(true)
         #expect(state.notchEnabled)
-        #expect(state.active == .window)
+        #expect(state.home == .notch)
+        #expect(state.active == .notch)
+    }
+
+    @Test func enablingNotchKeepsDialogInWindowAndLeavesOtherPanelsAlone() {
+        var dialog = PanelPresentation()
+        dialog.configureNotch(true, dialogOwner: .window)
+        #expect(dialog.active == .window)
+        var menu = PanelPresentation()
+        menu.activate(.menu)
+        menu.configureNotch(true)
+        #expect(menu.active == .menu)
+        var collapsed = PanelPresentation()
+        collapsed.dismiss(.window)
+        collapsed.configureNotch(true)
+        #expect(collapsed.active == nil)
     }
 
     @Test func expandingNotchAndReopeningWindowTransferOwnership() {

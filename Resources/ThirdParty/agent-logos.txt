@@ -1,0 +1,49 @@
+Agent logos in Contents/Resources/AgentLogos
+
+Byte Ports shows each detected coding agent with its brand mark. The marks are trademarks of their owners and are
+used with their permission. Byte Ports is not affiliated with or endorsed by these companies. The files are the
+owners' published vector logos, unchanged apart from removed metadata and a square viewBox where noted.
+
+claude.svg    Claude Spark. Anthropic, PBC. https://www.anthropic.com/press-kit
+codex.svg     Codex. OpenAI. Vector from LobeHub Icons (MIT, notice below), arc flags re-serialized.
+              https://github.com/lobehub/lobe-icons
+gemini.svg    Gemini. Google LLC. https://www.gstatic.com/images/branding/productlogos/gemini_2026/v1/192px.svg
+copilot.svg   GitHub Copilot. GitHub, Inc. https://brand.github.com
+cursor.svg    Cursor cube. Anysphere, Inc. https://cursor.com/brand (square viewBox)
+opencode.svg  OpenCode. Anomaly Innovations, Inc. https://opencode.ai/brand (MIT repository, notice below)
+aider.svg     Aider. Aider-AI. https://aider.chat/assets/icons/safari-pinned-tab.svg
+goose.svg     goose. LF Projects, LLC. https://github.com/aaif-goose/goose (Apache-2.0 repository)
+qwen.svg      Qwen Code. Alibaba Cloud. https://github.com/QwenLM/qwen-code (Apache-2.0 repository)
+kimi.svg      Kimi. Moonshot AI. https://www.kimi.com/resources/kimi-brand
+droid.svg     Factory Droid. The San Francisco AI Factory, Inc. https://github.com/Factory-AI/factory-zed-extension
+              (Apache-2.0 repository, viewBox added)
+vibe.svg      Mistral Vibe. Mistral AI. https://mistral.ai/brand
+kiro.svg      Kiro. Amazon Web Services, Inc. or its affiliates. https://kiro.dev
+hermes.svg    Hermes Agent. Nous Research. https://github.com/NousResearch/hermes-agent (MIT, notice below,
+              square viewBox)
+pi.svg        pi. Mario Zechner, Earendil Inc. https://pi.dev/press-kit
+amp.svg       Amp. https://ampcode.com/press-kit
+cline.svg     Cline. Cline Bot Inc. https://cline.bot/brand
+kilo.svg      Kilo Code. Kilo Code, Inc. https://github.com/Kilo-Org/kilocode (MIT, notice below)
+
+The Apache License 2.0 text is in cloudflared-LICENSE.txt. Copyright notices of the Apache-2.0 repositories:
+Copyright 2024 Block, Inc. (goose); Copyright 2025 Google LLC, Copyright 2025 Qwen (qwen-code).
+
+MIT License notices for the files from MIT-licensed repositories:
+Copyright (c) 2023 LobeHub (codex.svg)
+Copyright (c) 2025 opencode (opencode.svg)
+Copyright (c) 2025 Nous Research (hermes.svg)
+Copyright (c) 2026 Kilo Code; Copyright (c) 2025 opencode (kilo.svg)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit
+persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
