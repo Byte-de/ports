@@ -180,21 +180,28 @@ translated. Never add entries. Rebase onto changes to the baseline rather than m
 
 ## Glossary
 
+Use these terms in both languages. English UI copy uses US spelling.
+
 | English | German | Note |
 | --- | --- | --- |
-| Service | Dienst | |
-| Server | Server | |
-| Agent | Agent | |
+| Service | Dienst | anything Byte Ports detects; not „Prozess“ or „Übersicht“ |
+| Server | Server | not „Dev-Server“ as a tab name |
+| Agent | Agent | not „AI-Agenten“ |
 | TCP listener | TCP-Listener | |
 | Project | Projekt | |
 | No project | Ohne Projekt | |
-| Action | Aktion | |
+| Project folder | Projektordner | |
+| Action | Aktion | a saved command with its project folder; not „Startaktion“ |
 | New Action | Neue Aktion | |
-| Started | Gestartet | |
-| Detection | Erkennung | |
-| Pause detection / Resume detection | Erkennung pausieren / Erkennung fortsetzen | |
+| Started | Gestartet | a launched action |
+| Launch command | Startbefehl | the command line of a detected service |
+| Detection | Erkennung | not „Scan“ |
+| Detecting services… | Dienste werden erkannt… | before the first detection |
+| Pause detection / Resume detection | Erkennung pausieren / Erkennung fortsetzen | not „Scan pausieren“ |
 | Paused | Pausiert | explicit key |
-| Stop | Stoppen | explicit key |
+| Running | Läuft | explicit key |
+| Stop | Stoppen | explicit key; services and actions |
+| Stop requested | Stoppen angefordert | activity |
 | Force Stop | Sofort beenden | rows |
 | Force Quit | Sofort beenden | quit panel |
 | Quit %@ | %@ beenden | |
@@ -210,8 +217,16 @@ translated. Never add entries. Rebase onto changes to the baseline rather than m
 | Activity | Aktivität | |
 | Settings | Einstellungen | |
 | Introduction | Einführung | |
-| Favorite | Favorit | |
-| Project folder | Projektordner | |
-| Launch command | Startbefehl | |
+| Notch panel | Notch-Panel | |
 
-Do not use: Übersicht, AI-Agenten, Dev-Server (as a tab name), Startaktion, Scan pausieren, Projekt anheften.
+“Process” and „Prozess“ name only the operating-system process: its PID, or what a stop does to it. Everything the
+lists show is a service. „Beenden“ is for quitting the app, ending a share („Freigabe beenden“), the Exited state,
+Force Stop and what a stop asks the process to do („zum Beenden aufgefordert“). Stopping a service or an action is
+„Stoppen“.
+
+Activity entries start with the service's name: “%@ detected” / „%@ erkannt“, “%@ is no longer active” /
+„%@ nicht mehr aktiv“, “%@: paused” / „%@: pausiert“, “%@: resumed” / „%@: fortgesetzt“ and “%@: stop requested” /
+„%@: Stoppen angefordert“.
+
+Do not use: Übersicht, AI-Agenten, Dev-Server (as a tab name), Startaktion, Scan pausieren, Projekt anheften,
+PID kopieren.

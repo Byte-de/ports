@@ -5,23 +5,21 @@ struct ShareServerButton: View {
     @Bindable var model: MonitorModel
     let target: TunnelTarget
     let surface: MonitorSurface
+    var focusChanged: ((Bool) -> Void)?
     private var record: TunnelRecord? { model.tunnelRecord(target) }
     private var help: LocalizedStringResource {
         // Busy covers the HTTP check and the client launch, before a share record exists.
         if model.sharingBusy.contains(target.id) { return "Preparing share…" }
         return record?.phase == .ready ? "Copy share link" : "Share publicly"
     }
-    private var working: Bool {
-        model.sharingBusy.contains(target.id) || [.starting, .reconnecting, .stopping].contains(record?.phase)
-    }
     var body: some View {
         IconButton(
             symbol: "link", help: help,
-            tint: record?.phase == .ready ? DS.accent : DS.muted
+            tint: record?.phase == .ready ? DS.accent : DS.muted, focusChanged: focusChanged
         ) {
             model.share(target, from: surface)
         }
-        .disabled(model.demoMode || working || model.isQuitting || model.isSwitchingDemo)
+        .disabled(!model.canShare(target))
         .accessibilityHint(
             "Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.")
     }

@@ -1,23 +1,19 @@
 import AppKit
 import PortsCore
-import SwiftUI
 
-/// Coordinates only the three windows registered by our own views. Dialogs
-/// stay on their owner, so a surface change cannot discard an unfinished form.
+/// Shows the one panel on one surface: the expanded notch or the window. Dialogs stay on their owner, so a surface
+/// change cannot discard an unfinished form.
 @MainActor
 final class PanelWindowCoordinator: NSObject {
     static let shared = PanelWindowCoordinator()
     private var presentation = PanelPresentation()
     private weak var model: MonitorModel?
-    private weak var mainWindow: NSWindow?
-    private weak var menuWindow: NSWindow?
+    private weak var mainPanel: MainPanelController?
 
     override init() {
         super.init()
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowBecameKey), name: NSWindow.didBecomeKeyNotification, object: nil)
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(windowResignedKey), name: NSWindow.didResignKeyNotification, object: nil)
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowClosed), name: NSWindow.willCloseNotification, object: nil)
         NotificationCenter.default.addObserver(
@@ -25,93 +21,91 @@ final class PanelWindowCoordinator: NSObject {
             object: nil)
     }
 
-    func register(_ window: NSWindow, surface: MonitorSurface, model: MonitorModel) {
+    func install(model: MonitorModel, mainPanel: MainPanelController) {
         self.model = model
-        switch surface {
-        case .window: mainWindow = window
-        case .menu: menuWindow = window
-        case .notch: return
-        }
-        reportVisibility(window)
-        if window.isKeyWindow || (surface == .menu && window.isVisible) { _ = activate(surface) }
+        self.mainPanel = mainPanel
     }
 
     /// Runs at launch, after onboarding and when the setting changes. An enabled notch takes the panel over from the
-    /// window, so it never opens in the middle of the screen; disabling an expanded notch hands it back.
+    /// window, so it never opens in the middle of the screen; disabling an expanded notch hands it back. Onboarding
+    /// always runs in the window, so the notch is not the home meanwhile.
     func configureNotch(model: MonitorModel) {
         self.model = model
         let wasExpanded = presentation.active == .notch
-        let owner = model.hasBlockingPanelDialog ? model.presentationSurface : nil
-        presentation.configureNotch(model.preferences.showNotch, dialogOwner: owner)
-        if model.onboardingSession != nil { presentation.activate(.window) }
+        presentation.configureNotch(
+            model.preferences.showNotch && model.onboardingSession == nil, dialogOwner: dialogOwner)
         let movedToNotch = !wasExpanded && presentation.active == .notch
         if movedToNotch { model.presentationSurface = .notch }
         applyVisibility(animated: movedToNotch && PanelMotion.animatesInteraction)
-        if wasExpanded && !model.preferences.showNotch { model.revealWindow?() }
+        if wasExpanded && presentation.active == .window { showWindow() }
     }
 
-    /// While the notch is the panel's home, showing the app expands it instead of opening the window.
-    func revealNotchIfHome() -> Bool {
-        guard let model, presentation.home == .notch, model.onboardingSession == nil else { return false }
-        if presentation.active == .notch {
-            NotchController.shared.raise()
-        } else {
-            _ = activate(.notch, animated: PanelMotion.animatesInteraction)
+    /// Shows the panel where it lives: the expanded notch while the notch is enabled, otherwise the window at its
+    /// last position.
+    func showHome() {
+        if presentation.home == .notch { showNotch() } else { showWindow() }
+    }
+
+    /// The status item's click. A window behind other windows or on another Space comes forward instead of hiding.
+    func toggleHome() {
+        let home = presentation.home
+        // The policy decides on a copy; showHome and hide then apply the change with its side effects.
+        var next = presentation
+        guard home == .notch || mainPanel?.isOnScreen == true, next.toggleHome(dialogOwner: dialogOwner),
+            next.active == nil
+        else { return showHome() }
+        hide(home)
+    }
+
+    /// Onboarding and launch actions open in the window. Activation can be refused, the window comes forward anyway.
+    func showWindow() {
+        guard let mainPanel else {
+            PortsLog.lifecycle.error("Window requested before the panel was created")
+            return
         }
-        return true
+        guard activate(.window) else { return }
+        mainPanel.show()
+        reportVisibility(mainPanel.window)
     }
 
-    func prepareMainWindow() -> Bool { activate(.window) }
+    /// The window's close button. The panel stays mounted; the status item shows it again at the same position.
+    func closeWindow() { hide(.window) }
 
-    /// Activation can be refused (cooperative activation); ordering front regardless keeps the window visible.
-    func bringMainWindowForward() {
-        guard let window = mainWindow ?? NSApp.windows.first(where: { $0.identifier?.rawValue == "monitor" })
-        else { return }
-        window.makeKeyAndOrderFront(nil)
-        window.orderFrontRegardless()
-    }
-
-    func menuAppeared(model: MonitorModel) {
-        self.model = model
-        guard model.onboardingSession == nil else { return }
-        _ = activate(.menu)
-    }
-
+    /// The compact notch and the notch's collapse button.
     func toggleNotch() {
         guard let model else { return }
         if model.hasBlockingPanelDialog {
             raiseDialogOwner()
         } else if presentation.active == .notch {
-            presentation.dismiss(.notch)
-            applyVisibility(animated: PanelMotion.animatesInteraction)
+            hide(.notch)
         } else {
-            _ = activate(.notch, animated: PanelMotion.animatesInteraction)
+            activate(.notch, animated: PanelMotion.animatesInteraction)
         }
     }
 
-    /// A transient menu popover is not a stable home for a form. Handoff happens
-    /// before the dialog flag is set, avoiding both duplicate panels and lost input.
-    func dialogSurface(from requested: MonitorSurface) -> MonitorSurface {
-        if requested == .menu {
-            model?.revealWindow?()
-            return presentation.active == .notch ? .notch : .window
-        }
-        return requested
+    private var dialogOwner: MonitorSurface? {
+        guard let model, model.hasBlockingPanelDialog else { return nil }
+        return model.presentationSurface
     }
 
-    func showLaunch(model: MonitorModel) {
-        self.model = model
-        if presentation.active != .notch { model.revealWindow?() }
-        model.presentLaunch(from: presentation.active == .notch ? .notch : .window)
+    private func showNotch() {
+        if presentation.active == .notch {
+            NotchController.shared.raise()
+        } else {
+            activate(.notch, animated: PanelMotion.animatesInteraction)
+        }
+    }
+
+    /// The panel stays mounted while hidden, so drafts and the scroll position survive.
+    private func hide(_ surface: MonitorSurface) {
+        presentation.dismiss(surface)
+        applyVisibility(animated: PanelMotion.animatesInteraction)
     }
 
     @discardableResult private func activate(_ surface: MonitorSurface, animated: Bool = false) -> Bool {
         guard let model else { return true }
-        if surface == .menu && model.onboardingSession != nil { return false }
-        let owner = model.hasBlockingPanelDialog ? model.presentationSurface : nil
+        let owner = dialogOwner
         guard presentation.activate(surface, dialogOwner: owner) else {
-            if surface == .window && owner != .window { mainWindow?.orderOut(nil) }
-            if surface == .menu && owner != .menu { menuWindow?.orderOut(nil) }
             raiseDialogOwner()
             return false
         }
@@ -120,48 +114,39 @@ final class PanelWindowCoordinator: NSObject {
         return true
     }
 
+    /// Hides every surface but the active one; the notch also collapses or expands here.
     private func applyVisibility(animated: Bool = false) {
         guard let model else { return }
-        if presentation.active != .window { mainWindow?.orderOut(nil) }
-        if presentation.active != .menu { menuWindow?.orderOut(nil) }
+        if presentation.active != .window, let mainPanel {
+            mainPanel.hide()
+            reportVisibility(mainPanel.window)
+        }
         NotchController.shared.update(model: model, expanded: presentation.active == .notch, animated: animated)
     }
 
     private func raiseDialogOwner() {
-        switch model?.presentationSurface {
-        case .window: mainWindow?.makeKeyAndOrderFront(nil)
-        case .menu: menuWindow?.makeKeyAndOrderFront(nil)
+        guard let owner = dialogOwner else { return }
+        presentation.activate(owner, dialogOwner: owner)
+        applyVisibility()
+        switch owner {
+        case .window:
+            guard let mainPanel else { return }
+            mainPanel.show()
+            reportVisibility(mainPanel.window)
         case .notch: NotchController.shared.raise()
-        case nil: break
         }
     }
 
-    private func surface(of window: NSWindow) -> MonitorSurface? {
-        if window === mainWindow { return .window }
-        return window === menuWindow ? .menu : nil
-    }
-
-    /// Feeds the scan cadence. A window that is minimised, fully covered or on another Space counts as hidden.
+    /// Feeds the scan cadence. A window that is hidden, fully covered or on another Space counts as hidden.
     private func reportVisibility(_ window: NSWindow) {
-        guard let surface = surface(of: window) else { return }
-        // The menu panel is on screen while it is key, even before its occlusion state catches up.
-        let visible =
-            window.isVisible
-            && (window.occlusionState.contains(.visible) || (surface == .menu && window.isKeyWindow))
-        model?.setSurface(surface, visible: visible)
+        guard window === mainPanel?.window else { return }
+        model?.setSurface(.window, visible: window.isVisible && window.occlusionState.contains(.visible))
     }
 
     @objc private func windowBecameKey(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow else { return }
+        guard let window = notification.object as? NSWindow, window === mainPanel?.window else { return }
         reportVisibility(window)
-        if window === mainWindow { _ = activate(.window) } else if window === menuWindow { _ = activate(.menu) }
-    }
-
-    /// The transient menu panel closes when it loses key. Reporting that directly keeps the cadence right even if
-    /// the panel's occlusion change is never posted.
-    @objc private func windowResignedKey(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow, window === menuWindow else { return }
-        model?.setSurface(.menu, visible: false)
+        activate(.window)
     }
 
     @objc private func occlusionChanged(_ notification: Notification) {
@@ -170,33 +155,8 @@ final class PanelWindowCoordinator: NSObject {
     }
 
     @objc private func windowClosed(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow, let surface = surface(of: window) else { return }
-        presentation.dismiss(surface)
-        model?.setSurface(surface, visible: false)
+        guard let window = notification.object as? NSWindow, window === mainPanel?.window else { return }
+        presentation.dismiss(.window)
+        model?.setSurface(.window, visible: false)
     }
-}
-
-struct PanelWindowRegistration: NSViewRepresentable {
-    let surface: MonitorSurface
-    let model: MonitorModel
-
-    final class RegistrationView: NSView {
-        var attached: ((NSWindow) -> Void)?
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            Task { @MainActor [weak self] in
-                guard let self, let window else { return }
-                attached?(window)
-            }
-        }
-    }
-
-    func makeNSView(context: Context) -> RegistrationView {
-        let view = RegistrationView()
-        view.attached = { window in
-            PanelWindowCoordinator.shared.register(window, surface: surface, model: model)
-        }
-        return view
-    }
-    func updateNSView(_ view: RegistrationView, context: Context) {}
 }

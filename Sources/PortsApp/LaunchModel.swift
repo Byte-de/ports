@@ -14,16 +14,78 @@ extension MonitorModel {
         pendingForceStop = nil
     }
 
-    func presentLaunch(from surface: MonitorSurface) {
+    /// A new action starts in the folder asked for, else in the folder of the service whose details are open, else in
+    /// the folder of the last start.
+    func presentLaunch(from surface: MonitorSurface, prefill explicit: LaunchDraft? = nil) {
+        var inspected: ServiceRecord?
+        if case .details(let id) = navigation.top { inspected = service(for: id) }
+        let draft = LaunchDraft.prefill(
+            explicit: explicit, inspected: inspected, lastDirectory: preferences.lastLaunchDirectory)
+        presentLaunchForm(.create(draft), from: surface)
+    }
+
+    /// Not in the demo: it lists the real saved actions, so editing one there would change the user's settings.
+    func presentEdit(_ configuration: LaunchConfiguration, from surface: MonitorSurface) {
+        presentLaunchForm(.edit(configuration), from: surface)
+    }
+
+    private func presentLaunchForm(_ mode: LaunchFormRequest.Mode, from surface: MonitorSurface) {
         guard acceptsJobActions, !hasPanelDialog else { return }
-        presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
+        presentationSurface = surface
         dialogUsesMotion = PanelMotion.isPointerEvent
-        showLaunchForm = true
+        launchForm = LaunchFormRequest(mode: mode)
+    }
+
+    /// What the form shows inline before anything starts or is saved: a valid configuration and, for one that is
+    /// saved, a name no other saved action has.
+    func validateAction(_ configuration: LaunchConfiguration, saving: Bool) throws {
+        try configuration.validate()
+        if saving,
+            LaunchConfiguration.isNameTaken(
+                configuration.name, excluding: configuration.id, in: preferences.launchConfigurations)
+        {
+            throw LaunchError.duplicateName
+        }
+    }
+
+    /// Saves an edited action; the form shows a thrown error. A running slot keeps its run, and its next start or
+    /// restart uses what was saved.
+    func saveAction(_ configuration: LaunchConfiguration) throws {
+        guard !demoMode else { return }
+        try validateAction(configuration, saving: true)
+        let saved = commitPreferences { preferences in
+            if let index = preferences.launchConfigurations.firstIndex(where: { $0.id == configuration.id }) {
+                preferences.launchConfigurations[index] = configuration
+            } else {
+                preferences.launchConfigurations.append(configuration)
+            }
+        }
+        if saved { dismissPanelDialog() }
+    }
+
+    /// The edit form hands over to the confirmation, which replaces it.
+    func requestActionDeletion(_ configuration: LaunchConfiguration, from surface: MonitorSurface) {
+        guard acceptsJobActions else { return }
+        if case .edit(let editing) = launchForm?.mode, editing.id == configuration.id { launchForm = nil }
+        guard !hasPanelDialog else { return }
+        presentationSurface = surface
+        dialogUsesMotion = PanelMotion.isPointerEvent
+        pendingActionDeletion = configuration
+    }
+
+    /// Only the saved action goes. Its slot keeps running and moves to Run Once, where it can be stopped as before.
+    func deleteAction(_ configuration: LaunchConfiguration) {
+        guard !demoMode,
+            commitPreferences({ preferences in
+                preferences.launchConfigurations.removeAll { $0.id == configuration.id }
+            })
+        else { return }
+        notify("Action deleted")
     }
 
     func requestJobStop(_ job: LaunchRecord, from surface: MonitorSurface) {
         guard acceptsJobActions, !hasPanelDialog, !busyJobs.contains(job.id) else { return }
-        presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
+        presentationSurface = surface
         dialogUsesMotion = PanelMotion.isPointerEvent
         pendingJobStop = job
     }
@@ -31,15 +93,21 @@ extension MonitorModel {
     /// Only offered once a stop timed out. A restart that timed out restarts after the confirmed force stop.
     func requestForceStop(_ job: LaunchRecord, from surface: MonitorSurface) {
         guard acceptsJobActions, !hasPanelDialog, !busyJobs.contains(job.id) else { return }
-        presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
+        presentationSurface = surface
         dialogUsesMotion = PanelMotion.isPointerEvent
         pendingForceStop = PendingForceStop(job: job, restartAfter: restartAfterForce.contains(job.id))
     }
 
     func run(_ configuration: LaunchConfiguration, save: Bool, fromForm: Bool = false) {
         guard acceptsJobActions, !isLaunching else { return }
+        // The form checks first and shows the error inline; a duplicate never starts or reaches the saved actions.
+        if save {
+            do { try validateAction(configuration, saving: true) } catch { return report(error, as: .start) }
+        }
         isLaunching = true
         if fromForm { pendingFormLaunch = configuration.id }
+        // A row start leaves alone a form opened while the shell environment loads; only the starting form closes.
+        let formID = fromForm ? launchForm?.id : nil
         Task {
             defer {
                 isLaunching = false
@@ -54,18 +122,20 @@ extension MonitorModel {
                 }
                 let id = try await launcher.start(configuration)
                 if save && !preferences.launchConfigurations.contains(where: { $0.id == configuration.id }) {
-                    preferences.launchConfigurations.append(configuration)
-                    savePreferences()
+                    commitPreferences { $0.launchConfigurations.append(configuration) }
+                }
+                // The next new action starts here. Remembering it is a convenience, so a failure is only logged.
+                if preferences.lastLaunchDirectory != configuration.directory {
+                    persistQuietly { $0.lastLaunchDirectory = configuration.directory }
                 }
                 record("\(configuration.name) gestartet", detail: configuration.directory, symbol: "play.circle")
                 // After the entry, so a command that fails at once is reported after its start.
                 await reloadLaunches()
-                logJobID = id
-                showingLogs = true
-                showLaunchForm = false
-                section = .actions
-                search = ""
-                showingDetails = false
+                if let formID, launchForm?.id == formID { launchForm = nil }
+                // The output replaces the form at once; it never travels in from a page the user didn't choose.
+                navigationUsesMotion = false
+                navigation.select(.actions)
+                navigation.push(.output(id))
                 await refresh()
             } catch { reportUnlessQuitting(error, as: .start) }
         }
@@ -160,12 +230,11 @@ extension MonitorModel {
         let previous = launches
         guard next != previous else { return }
         launches = next
-        if let shown = logJobID, !next.contains(where: { $0.id == shown }) {
-            logJobID = nil
-            showingLogs = false
-            logs = ""
+        if let shown = outputJobID, !next.contains(where: { $0.id == shown }) {
+            navigationUsesMotion = false
+            navigation.pop()
         }
-        // Like the log, a confirmation closes with its run, so it never reports a stop that didn't happen.
+        // A confirmation closes with its run, so it never reports a stop that didn't happen.
         if let job = pendingJobStop, !LaunchListing.isLive(job, in: next) { pendingJobStop = nil }
         if let job = pendingForceStop?.job, !LaunchListing.isLive(job, in: next) { pendingForceStop = nil }
         // A stop reports a run that ended during it; a restart's new run is reported like any other.
@@ -215,7 +284,7 @@ extension MonitorModel {
         }
     }
 
-    /// The slot keeps its id, so logJobID stays valid. A saved action restarts as currently saved.
+    /// The slot keeps its id, so its open output stays valid. A saved action restarts as currently saved.
     private func restartSlot(of job: LaunchRecord) async {
         restartingJobs.insert(job.id)
         defer { restartingJobs.remove(job.id) }
@@ -251,9 +320,6 @@ extension MonitorModel {
         await launcher.prepareShellEnvironment()
     }
 
-    func showLogs(_ job: LaunchRecord) {
-        logJobID = job.id
-        showingLogs = true
-        Task { logs = await launcher.output(for: job.id) }
-    }
+    /// The page reads the output itself, and only while it is on screen.
+    func showLogs(_ job: LaunchRecord) { push(.output(job.id)) }
 }

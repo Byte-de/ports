@@ -169,7 +169,7 @@ private struct NotchView: View {
                 .opacity(hasDialog ? 0 : 1)
                 .allowsHitTesting(false).accessibilityHidden(true)
             MonitorPanel(
-                model: model, surface: .notch, collapse: toggle,
+                model: model, surface: .notch, surfaceControl: .collapse(toggle),
                 drawsSurface: false, contentIsRevealed: state.expanded,
                 revealAnimation: state.animatesContent ? PanelMotion.fade(state.expanded ? 0.16 : 0.12) : nil
             )

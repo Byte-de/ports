@@ -167,7 +167,7 @@ struct OnboardingView: View {
                     Label("Live-Erkennung startet beim Öffnen", systemImage: "waveform.path")
                 } else if !model.hasScanned {
                     ProgressView().controlSize(.small)
-                    Text("Laufende Prozesse werden erfasst…")
+                    Text("Detecting services…")
                 } else if model.counts.total == 0 {
                     Label("Bereit für deinen ersten Dienst", systemImage: "checkmark")
                 } else {
@@ -255,7 +255,8 @@ private struct IntroductionPreview: View {
                         Text(Format.uptime(service.id.startDate)).font(.system(size: 10, design: .monospaced))
                             .foregroundStyle(DS.muted)
                         actionIcon("arrow.up.forward.square", title: "Öffnen")
-                        actionIcon("doc.on.doc", title: agents ? "PID kopieren" : "URL kopieren")
+                        // Like the live rows: agents without a port have nothing to copy.
+                        if !agents { actionIcon("doc.on.doc", title: "Copy URL") }
                         actionIcon("stop.circle", title: "Stoppen", tint: DS.red)
                     }.frame(height: DS.rowHeight)
                     if service.id != services.last?.id { Rectangle().fill(DS.line).frame(height: 0.5) }
@@ -321,7 +322,7 @@ private struct AccessChoice: View {
                 )
                 .contentShape(RoundedRectangle(cornerRadius: 26))
         }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : [])
-            .accessibilityLabel(notch ? "Notch-Panel zusätzlich verwenden" : "Fenster und Menüleiste verwenden")
+            .accessibilityLabel(notch ? "Use the notch panel" : "Fenster und Menüleiste verwenden")
     }
     private var miniaturePanel: some View {
         VStack(alignment: .leading, spacing: 6) {

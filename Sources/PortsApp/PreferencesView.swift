@@ -9,6 +9,11 @@ struct PreferencesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 group("ERKENNUNG") {
+                    Toggle(isOn: Binding(get: { model.isMonitoring }, set: { model.setMonitoring($0) })) {
+                        settingLabel("Automatic detection")
+                    }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
+                        .accessibilityLabel("Automatic detection")
+                    Divider().overlay(DS.line)
                     HStack {
                         settingLabel("Aktualisieren")
                         Spacer()
@@ -33,10 +38,10 @@ struct PreferencesView: View {
                 group("SCHNELLER ZUGRIFF") {
                     Toggle(isOn: $model.preferences.showNotch) {
                         settingLabel(
-                            "Notch-Panel",
-                            detail: "Zusätzlich am oberen Bildschirmrand.")
+                            "Notch panel",
+                            detail: "Opens \(AppInfo.name) at the top of the screen instead of in a window.")
                     }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
-                        .accessibilityLabel("Notch-Panel").onChange(of: model.preferences.showNotch) {
+                        .accessibilityLabel("Notch panel").onChange(of: model.preferences.showNotch) {
                             model.savePreferences()
                             PanelWindowCoordinator.shared.configureNotch(model: model)
                         }
@@ -54,30 +59,10 @@ struct PreferencesView: View {
                     }.frame(minHeight: 40).contentShape(Rectangle())
                 }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
                 Divider().overlay(DS.line)
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Button("Einführung ansehen") { model.presentOnboarding() }.buttonStyle(QuietButton())
-                        Button(model.demoMode ? "Live anzeigen" : "Demo öffnen") {
-                            model.toggleDemo()
-                            model.navigate(.servers)
-                        }.buttonStyle(QuietButton())
-                    }
-                    HStack(spacing: 8) {
-                        Button {
-                            model.navigate(.activity)
-                        } label: {
-                            Label("Aktivität", systemImage: "clock.arrow.circlepath")
-                        }.buttonStyle(QuietButton())
-                        Button {
-                            model.isMonitoring.toggle()
-                            if model.isMonitoring { Task { await model.refresh() } }
-                        } label: {
-                            Label(
-                                model.isMonitoring ? "Scan pausieren" : "Scan fortsetzen",
-                                systemImage: model.isMonitoring ? "pause" : "play")
-                        }.buttonStyle(QuietButton())
-                        Spacer()
-                    }
+                HStack(spacing: 8) {
+                    Button("Einführung ansehen") { model.presentOnboarding() }.buttonStyle(QuietButton())
+                    Button(model.demoMode ? "Live anzeigen" : "Demo öffnen") { model.toggleDemo() }
+                        .buttonStyle(QuietButton())
                 }
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 10) {

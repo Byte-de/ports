@@ -31,6 +31,16 @@ extension MonitorModel {
             && (service.isKnownNonHTTP || nonHTTPTargets.contains { $0.process == service.id && $0.port == port })
     }
 
+    /// Busy covers the HTTP check and the client launch, before a share record exists.
+    func isShareWorking(_ target: TunnelTarget) -> Bool {
+        sharingBusy.contains(target.id) || [.starting, .reconnecting, .stopping].contains(tunnelRecord(target)?.phase)
+    }
+
+    /// Whether a click may start the share or copy its link now.
+    func canShare(_ target: TunnelTarget) -> Bool {
+        !demoMode && !isShareWorking(target) && !isQuitting && !isSwitchingDemo
+    }
+
     var activeShares: [TunnelRecord] { PublicSharing.activeShares(records: tunnelRecords, demoMode: demoMode) }
 
     /// Drives the globe in the menu bar and the notch.
@@ -51,7 +61,7 @@ extension MonitorModel {
             return
         }
         guard preferences.hasAcknowledgedPublicSharing else {
-            presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
+            presentationSurface = surface
             dialogUsesMotion = PanelMotion.isPointerEvent
             pendingShare = target
             return

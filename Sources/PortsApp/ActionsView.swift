@@ -8,47 +8,35 @@ struct ActionsView: View {
     let surface: MonitorSurface
     var body: some View {
         let rows = LaunchListing.rows(saved: model.preferences.launchConfigurations, jobs: model.launches)
-        Group {
-            if model.showingLogs {
-                logs
-            } else if rows.saved.isEmpty && rows.oneOff.isEmpty {
-                VStack(spacing: 14) {
-                    EmptyState(
-                        symbol: "bolt", title: "Ein Befehl. Ein Klick.",
-                        detail: "Speichere einen Startbefehl mit seinem Projektordner.")
-                    Button {
-                        model.presentLaunch(from: surface)
-                    } label: {
-                        Label("Aktion hinzufügen", systemImage: "plus")
-                    }.buttonStyle(QuietButton()).disabled(model.demoMode).padding(.bottom, 28)
-                }
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        if !rows.saved.isEmpty {
-                            header("SAVED", clearsFinished: true)
-                            ForEach(rows.saved) { row in
-                                LaunchRowView(model: model, row: row, surface: surface)
-                                Rectangle().fill(DS.line).frame(height: 0.5)
-                            }
-                        }
-                        if !rows.oneOff.isEmpty {
-                            header("RUN ONCE", clearsFinished: rows.saved.isEmpty)
-                            ForEach(rows.oneOff) { row in
-                                LaunchRowView(model: model, row: row, surface: surface)
-                                Rectangle().fill(DS.line).frame(height: 0.5)
-                            }
-                        }
-                    }.padding(.horizontal, 16)
-                }
+        if rows.saved.isEmpty && rows.oneOff.isEmpty {
+            VStack(spacing: 14) {
+                EmptyState(
+                    symbol: "bolt", title: "Ein Befehl. Ein Klick.",
+                    detail: "Speichere einen Startbefehl mit seinem Projektordner.")
+                Button {
+                    model.presentLaunch(from: surface)
+                } label: {
+                    Label("Aktion hinzufügen", systemImage: "plus")
+                }.buttonStyle(QuietButton()).disabled(model.demoMode).padding(.bottom, 28)
             }
-        }
-        .task(id: model.showingLogs ? model.logJobID : nil) {
-            guard model.showingLogs, let id = model.logJobID else { return }
-            while !Task.isCancelled {
-                model.logs = await model.launcher.output(for: id)
-                await model.reloadLaunches()
-                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !rows.saved.isEmpty {
+                        header("SAVED", clearsFinished: true)
+                        ForEach(rows.saved) { row in
+                            LaunchRowView(model: model, row: row, surface: surface)
+                            Rectangle().fill(DS.line).frame(height: 0.5)
+                        }
+                    }
+                    if !rows.oneOff.isEmpty {
+                        header("RUN ONCE", clearsFinished: rows.saved.isEmpty)
+                        ForEach(rows.oneOff) { row in
+                            LaunchRowView(model: model, row: row, surface: surface)
+                            Rectangle().fill(DS.line).frame(height: 0.5)
+                        }
+                    }
+                }.padding(.horizontal, 16)
             }
         }
     }
@@ -64,109 +52,58 @@ struct ActionsView: View {
             }
         }.padding(.top, 16).padding(.bottom, 4)
     }
-
-    private var logs: some View {
-        VStack(spacing: 0) {
-            HStack {
-                logTitle.font(.system(size: 12)).foregroundStyle(DS.muted).lineLimit(1)
-                Spacer()
-                IconButton(symbol: "doc.on.doc", help: "Ausgabe kopieren") { model.copy(model.logs) }
-            }.padding(.horizontal, 16)
-            ScrollView([.vertical, .horizontal]) {
-                (model.logs.isEmpty ? Text("Noch keine Ausgabe…") : Text(verbatim: model.logs))
-                    .font(.system(size: 11, design: .monospaced)).foregroundStyle(DS.text)
-                    .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .topLeading).padding(16)
-            }
-            Text("Letzte 256 KB · stdout + stderr").font(.system(size: 9)).foregroundStyle(DS.muted).padding(.top, 8)
-        }
-    }
-
-    private var logTitle: Text {
-        if let job = model.launches.first(where: { $0.id == model.logJobID }) {
-            return Text(verbatim: job.configuration.name)
-        }
-        return Text("Dienst")
-    }
 }
 
-/// A saved action or a launched slot. The leading glyph and the subtitle show its phase; at most two controls trail.
-private struct LaunchRowView: View {
-    private enum Phase: Equatable {
-        case idle, loading
-        case running(since: Date)
-        case stopping, restarting, unresponsive, stopped, finished
-        case failed(exit: Int32)
-    }
-    private static let stopLabel = LocalizedStringResource(
-        "job.stopEllipsis", defaultValue: "Stop…", comment: "Asks to confirm stopping a launched action")
+/// A slot's phase, as its row and its output page show it.
+private enum LaunchPhase: Equatable {
+    case idle, loading
+    case running(since: Date)
+    case stopping, restarting, unresponsive, stopped, finished
+    case failed(exit: Int32)
 
-    @Bindable var model: MonitorModel
-    let row: LaunchRow
-    let surface: MonitorSurface
-    @State private var hovered = false
-    @FocusState private var removeFocused: Bool
-
-    private var phase: Phase {
-        if model.loadingShellEnvironment.contains(row.id) { return .loading }
-        guard let job = row.job else { return .idle }
-        if model.restartingJobs.contains(job.id) { return .restarting }
+    /// `id` is the configuration's, which its slot shares.
+    @MainActor init(model: MonitorModel, id: UUID, job: LaunchRecord?) {
+        if model.loadingShellEnvironment.contains(id) {
+            self = .loading
+            return
+        }
+        guard let job else {
+            self = .idle
+            return
+        }
+        if model.restartingJobs.contains(job.id) {
+            self = .restarting
+            return
+        }
         // A stop or force stop in progress shows at once, before the next read of the slot.
         let busy = model.busyJobs.contains(job.id)
-        switch job.state {
-        case .running: return busy ? .stopping : .running(since: job.startedAt)
-        case .stopping: return .stopping
-        case .unresponsive: return busy ? .stopping : .unresponsive
-        case .stopped: return .stopped
-        case .finished: return .finished
-        case .failed: return .failed(exit: job.exitCode ?? -1)
-        }
+        self =
+            switch job.state {
+            case .running: busy ? .stopping : .running(since: job.startedAt)
+            case .stopping: .stopping
+            case .unresponsive: busy ? .stopping : .unresponsive
+            case .stopped: .stopped
+            case .finished: .finished
+            case .failed: .failed(exit: job.exitCode ?? -1)
+            }
     }
 
-    private var isRunning: Bool {
-        if case .running = phase { return true }
+    var isRunning: Bool {
+        if case .running = self { return true }
         return false
     }
 
-    var body: some View {
-        HStack(spacing: 8) {
-            glyph.font(.system(size: 12)).frame(width: 16).accessibilityHidden(true)
-            if let job = row.job {
-                Button {
-                    model.showLogs(job)
-                } label: {
-                    labels
-                }.buttonStyle(.plain).help("Show Output")
-            } else {
-                labels
-            }
-            controls
-        }
-        .onHover { hovered = $0 }
-        .contextMenu { menu }
-    }
-
-    private var labels: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(verbatim: row.configuration.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
-            subtitle.font(.system(size: 11, design: phase == .idle ? .monospaced : .default))
-                .foregroundStyle(subtitleTint).lineLimit(1)
-        }.frame(maxWidth: .infinity, alignment: .leading).frame(height: DS.rowHeight).contentShape(Rectangle())
-    }
-
-    @ViewBuilder private var glyph: some View {
-        switch phase {
-        case .idle: Image(systemName: "bolt").foregroundStyle(DS.muted)
-        case .running: Circle().fill(DS.accent).frame(width: 6, height: 6)
-        case .loading, .stopping, .restarting: ProgressView().controlSize(.mini)
-        case .unresponsive: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.orange)
-        case .stopped, .finished: Image(systemName: "checkmark").foregroundStyle(DS.muted)
-        case .failed: Image(systemName: "xmark").foregroundStyle(DS.red)
+    var hasEnded: Bool {
+        switch self {
+        case .stopped, .finished, .failed: true
+        default: false
         }
     }
 
-    private var subtitle: Text {
-        switch phase {
-        case .idle: Text(verbatim: row.configuration.command)
+    /// An action that never ran shows its command.
+    func subtitle(command: String) -> Text {
+        switch self {
+        case .idle: Text(verbatim: command)
         case .loading: Text("Loading shell environment…")
         case .running(let since): Text("Running · \(since.formatted(date: .omitted, time: .shortened))")
         case .stopping: Text("Stopping…")
@@ -178,12 +115,172 @@ private struct LaunchRowView: View {
         }
     }
 
-    private var subtitleTint: Color {
-        switch phase {
+    var tint: Color {
+        switch self {
         case .running: DS.accent
         case .unresponsive: DS.orange
         case .failed: DS.red
         default: DS.muted
+        }
+    }
+}
+
+private let jobStopLabel = LocalizedStringResource(
+    "job.stopEllipsis", defaultValue: "Stop…", comment: "Asks to confirm stopping a launched action")
+
+/// A launched job's output, pushed over the Actions tab. New output streams in twice a second while this surface shows
+/// the page, and the text follows the end until the user scrolls up.
+struct LogPane: View {
+    @Bindable var model: MonitorModel
+    let jobID: UUID
+    let surface: MonitorSurface
+    @State private var feed = LogFeed()
+    @State private var following = true
+    @State private var isEmpty = false
+    @State private var hasUnseenOutput = false
+
+    private var job: LaunchRecord? { model.launches.first { $0.id == jobID } }
+    /// The feed reads only while this surface is on screen.
+    private var polledJob: UUID? { model.isShowing(surface) ? jobID : nil }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let job { subheader(job) }
+            LogTextView(
+                feed: feed, name: job?.configuration.name ?? "",
+                onFollowChange: { isFollowing in
+                    following = isFollowing
+                    if isFollowing { hasUnseenOutput = false }
+                },
+                onEmptyChange: { isEmpty = $0 }, onUnseenOutput: { hasUnseenOutput = true }
+            )
+            .overlay {
+                if isEmpty {
+                    Text("No output yet…").font(.system(size: 11)).foregroundStyle(DS.muted).allowsHitTesting(false)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if hasUnseenOutput && !following { newOutputButton }
+            }
+            Text("Last 256 KB · stdout + stderr").font(.system(size: 9)).foregroundStyle(DS.muted).padding(.top, 8)
+        }
+        .task(id: polledJob) {
+            if let polledJob { await feed.run(job: polledJob, launcher: model.launcher) }
+        }
+    }
+
+    private func subheader(_ job: LaunchRecord) -> some View {
+        let phase = LaunchPhase(model: model, id: job.id, job: job)
+        return HStack(spacing: 8) {
+            Circle().fill(phase.tint).frame(width: 6, height: 6).accessibilityHidden(true)
+            Text(verbatim: job.configuration.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            phase.subtitle(command: job.configuration.command).font(.system(size: 11)).foregroundStyle(phase.tint)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            IconButton(symbol: "doc.on.doc", help: "Copy Output") { copyOutput() }
+            IconButton(symbol: "arrow.clockwise", help: "Restart") { restart(job) }
+                .disabled(!(phase.isRunning || phase.hasEnded) || model.demoMode)
+            if phase.isRunning {
+                IconButton(symbol: "stop.circle", help: jobStopLabel, tint: DS.red) {
+                    model.requestJobStop(job, from: surface)
+                }.disabled(model.demoMode)
+            } else if phase == .unresponsive {
+                IconButton(symbol: "xmark.octagon", help: "Force Stop…", tint: DS.red) {
+                    model.requestForceStop(job, from: surface)
+                }.disabled(model.demoMode)
+            }
+        }.padding(.horizontal, 16)
+    }
+
+    private var newOutputButton: some View {
+        Button {
+            feed.scrollToEnd?()
+        } label: {
+            Label("New output", systemImage: "arrow.down").font(.system(size: 11, weight: .medium))
+                .foregroundStyle(DS.text).padding(.horizontal, 12).padding(.vertical, 7)
+                .background(DS.surface, in: Capsule())
+                .overlay(Capsule().strokeBorder(DS.line, lineWidth: 0.5))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain).padding(.bottom, 10)
+    }
+
+    /// The whole retained output, not only what the view still holds.
+    private func copyOutput() {
+        let animate = PanelMotion.isPointerEvent
+        Task {
+            let output = await model.launcher.output(for: jobID)
+            model.copy(output, message: "Output copied", animateFeedback: animate)
+        }
+    }
+
+    private func restart(_ job: LaunchRecord) {
+        model.presentationSurface = surface
+        model.restartJob(job)
+    }
+}
+
+/// A saved action or a launched slot. The leading glyph and the subtitle show its phase; at most two controls trail,
+/// after a saved action's edit button, which hover or keyboard focus reveals.
+private struct LaunchRowView: View {
+    @Bindable var model: MonitorModel
+    let row: LaunchRow
+    let surface: MonitorSurface
+    @State private var hovered = false
+    @FocusState private var removeFocused: Bool
+    @FocusState private var editFocused: Bool
+
+    private var phase: LaunchPhase { LaunchPhase(model: model, id: row.id, job: row.job) }
+    /// The demo lists the real saved actions, so changing one there would change the user's settings.
+    private var canEdit: Bool { row.isSaved && !model.demoMode && !model.isQuitting }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            glyph.font(.system(size: 12)).frame(width: 16).accessibilityHidden(true)
+            if let job = row.job {
+                Button {
+                    model.showLogs(job)
+                } label: {
+                    labels
+                }.buttonStyle(.plain).help("Show Output")
+            } else {
+                // Only a saved action has no slot before its first start. Not disabled in the demo, which would dim
+                // the row; presentEdit ignores the click there.
+                Button {
+                    edit()
+                } label: {
+                    labels
+                }.buttonStyle(.plain).help("Edit")
+            }
+            if row.isSaved {
+                let revealed = hovered || editFocused
+                IconButton(symbol: "pencil", help: "Edit") { edit() }
+                    .focused($editFocused).opacity(revealed ? 1 : 0).allowsHitTesting(revealed)
+                    .disabled(!canEdit)
+            }
+            controls
+        }
+        .onHover { hovered = $0 }
+        .contextMenu { menu }
+    }
+
+    private var labels: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(verbatim: row.configuration.name).font(.system(size: 12, weight: .medium)).lineLimit(1)
+            phase.subtitle(command: row.configuration.command)
+                .font(.system(size: 11, design: phase == .idle ? .monospaced : .default))
+                .foregroundStyle(phase.tint).lineLimit(1)
+        }.frame(maxWidth: .infinity, alignment: .leading).frame(height: DS.rowHeight).contentShape(Rectangle())
+    }
+
+    @ViewBuilder private var glyph: some View {
+        switch phase {
+        case .idle: Image(systemName: "bolt").foregroundStyle(DS.muted)
+        case .running: Circle().fill(DS.accent).frame(width: 6, height: 6)
+        case .loading, .stopping, .restarting: ProgressView().controlSize(.mini)
+        case .unresponsive: Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(DS.orange)
+        case .stopped, .finished: Image(systemName: "checkmark").foregroundStyle(DS.muted)
+        case .failed: Image(systemName: "xmark").foregroundStyle(DS.red)
         }
     }
 
@@ -203,7 +300,7 @@ private struct LaunchRowView: View {
             .disabled(model.demoMode || model.isLaunching)
         case .running:
             IconButton(symbol: "arrow.clockwise", help: "Restart") { restart() }.disabled(model.demoMode)
-            IconButton(symbol: "stop.circle", help: Self.stopLabel, tint: DS.red) { requestStop() }
+            IconButton(symbol: "stop.circle", help: jobStopLabel, tint: DS.red) { requestStop() }
                 .disabled(model.demoMode)
         case .unresponsive:
             IconButton(symbol: "xmark.octagon", help: "Force Stop…", tint: DS.red) {
@@ -219,21 +316,22 @@ private struct LaunchRowView: View {
             .disabled(row.job?.state.isActive == true || model.demoMode || model.isLaunching)
         if let job = row.job {
             Button("Show Output") { model.showLogs(job) }
-            Button("Restart") { restart() }.disabled(!isRunning || model.demoMode)
+            Button("Restart") { restart() }.disabled(!phase.isRunning || model.demoMode)
             Button(role: .destructive) {
                 requestStop()
             } label: {
-                Text(Self.stopLabel)
-            }.disabled(!isRunning || model.demoMode)
+                Text(jobStopLabel)
+            }.disabled(!phase.isRunning || model.demoMode)
         }
         Divider()
+        if row.isSaved {
+            Button("Edit…") { edit() }.disabled(!canEdit)
+        }
         Button("Copy Command") { model.copy(row.configuration.command) }
         if row.isSaved {
-            // The demo lists the real saved actions, so deleting one there would change the user's settings.
-            Button("Aktion entfernen", role: .destructive) {
-                model.preferences.launchConfigurations.removeAll { $0.id == row.id }
-                model.savePreferences()
-            }.disabled(model.demoMode || model.isQuitting)
+            Button("Delete…", role: .destructive) {
+                model.requestActionDeletion(row.configuration, from: surface)
+            }.disabled(!canEdit)
         } else {
             Button("Remove from List", role: .destructive) { remove() }
                 .disabled(row.job?.state.isActive != false || model.demoMode)
@@ -243,6 +341,10 @@ private struct LaunchRowView: View {
     private func start() {
         model.presentationSurface = surface
         model.run(row.configuration, save: false)
+    }
+
+    private func edit() {
+        model.presentEdit(row.configuration, from: surface)
     }
 
     private func restart() {
@@ -260,66 +362,118 @@ private struct LaunchRowView: View {
     }
 }
 
+/// Creates an action and starts it, or edits a saved one. An edit applies from the next start, so a running service
+/// keeps its run.
 struct LaunchForm: View {
     private enum Field: Hashable { case name, command, directory }
     @Bindable var model: MonitorModel
-    let dismiss: () -> Void
-    @State private var name = ""
-    @State private var command = ""
-    @State private var directory = ""
+    let request: LaunchFormRequest
+    @State private var name: String
+    @State private var command: String
+    @State private var directory: String
     @State private var save = true
     @State private var validation: String?
     @State private var startedID: UUID?
     @FocusState private var focusedField: Field?
+    private let suggestedName: String?
+
+    init(model: MonitorModel, request: LaunchFormRequest) {
+        self.model = model
+        self.request = request
+        switch request.mode {
+        case .create(let draft):
+            _name = State(initialValue: draft.name)
+            _command = State(initialValue: draft.command)
+            _directory = State(initialValue: draft.directory)
+            suggestedName = draft.suggestedName
+        case .edit(let configuration):
+            _name = State(initialValue: configuration.name)
+            _command = State(initialValue: configuration.command)
+            _directory = State(initialValue: configuration.directory)
+            suggestedName = nil
+        }
+    }
+
+    private var editing: LaunchConfiguration? {
+        if case .edit(let configuration) = request.mode { return configuration }
+        return nil
+    }
+    private var title: LocalizedStringResource { editing == nil ? "New Action" : "Edit Action" }
+    private var isIncomplete: Bool { name.isEmpty || command.isEmpty || directory.isEmpty }
+    /// The project folder's name, when the form starts in one, is the example.
+    private var namePlaceholder: String {
+        guard let suggestedName else {
+            return String(localized: "For example: Frontend", comment: "Placeholder of a new action's name")
+        }
+        return String(
+            localized: "For example: \(suggestedName)",
+            comment: "Placeholder of a new action's name; the argument is its project folder's name")
+    }
+    private var isRunning: Bool {
+        guard let editing else { return false }
+        return model.launches.contains { $0.id == editing.id && $0.state.isActive }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
             HStack {
-                Text("Dienst starten").font(.system(size: 17, weight: .medium))
+                Text(title).font(.system(size: 17, weight: .medium))
                 Spacer()
-                IconButton(symbol: "xmark", help: "Schließen", action: dismiss)
+                IconButton(symbol: "xmark", help: "Schließen") { model.dismissPanelDialog() }
             }
-            field("NAME", placeholder: String(localized: "Zum Beispiel: Frontend"), value: $name, focus: .name)
-            field("BEFEHL", placeholder: "npm run dev", value: $command, focus: .command, monospaced: true)
+            field("NAME", placeholder: namePlaceholder, value: $name, focus: .name)
+            field("COMMAND", placeholder: "npm run dev", value: $command, focus: .command, monospaced: true)
             VStack(alignment: .leading, spacing: 9) {
-                Text("PROJEKTORDNER").overline()
+                Text("PROJECT FOLDER").overline()
                 HStack(spacing: 8) {
                     TextField("/Pfad/zum/Projekt", text: $directory).font(.system(size: 12, design: .monospaced))
                         .textFieldStyle(.plain)
                         .focused($focusedField, equals: .directory)
                         .padding(11).background(DS.background, in: RoundedRectangle(cornerRadius: 8))
-                    Button("Auswählen…") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseDirectories = true
-                        panel.canChooseFiles = false
-                        panel.allowsMultipleSelection = false
-                        if panel.runModal() == .OK, let url = panel.url { directory = url.path }
-                    }.buttonStyle(QuietButton())
+                    Button("Choose…") { chooseDirectory() }.buttonStyle(QuietButton())
                 }
             }
-            Toggle("Als Startaktion speichern", isOn: $save).toggleStyle(.checkbox).font(.system(size: 12))
+            if editing == nil {
+                Toggle("Save as action", isOn: $save).toggleStyle(.checkbox).font(.system(size: 12))
+            } else if isRunning {
+                Label("Currently running. Changes apply from the next start.", systemImage: "info.circle")
+                    .font(.system(size: 12)).foregroundStyle(DS.accent)
+            }
             Text("Runs in zsh with your shell's environment variables. Aliases aren't available.")
                 .font(.system(size: 11)).foregroundStyle(DS.muted).lineSpacing(4)
             if let validation {
                 Label(validation, systemImage: "exclamationmark.circle").font(.system(size: 11)).foregroundStyle(
                     DS.orange)
             }
-            HStack {
-                if let startedID, model.loadingShellEnvironment.contains(startedID) {
-                    Text("Loading shell environment…").font(.system(size: 11)).foregroundStyle(DS.muted)
-                }
-                Spacer()
-                Button("Abbrechen", action: dismiss).buttonStyle(QuietButton()).keyboardShortcut(.cancelAction)
+            footer
+        }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
+            .task { focusedField = .name }
+    }
+
+    private var footer: some View {
+        HStack {
+            if let editing {
+                // The confirmation replaces the form.
+                Button("Delete…", role: .destructive) {
+                    model.requestActionDeletion(editing, from: model.presentationSurface)
+                }.buttonStyle(QuietButton(tint: DS.red)).disabled(model.demoMode || model.isQuitting)
+            } else if let startedID, model.loadingShellEnvironment.contains(startedID) {
+                Text("Loading shell environment…").font(.system(size: 11)).foregroundStyle(DS.muted)
+            }
+            Spacer()
+            Button("Cancel") { model.dismissPanelDialog() }.buttonStyle(QuietButton()).keyboardShortcut(.cancelAction)
+            if let editing {
+                Button("Save") { saveEdit(of: editing) }.buttonStyle(AccentButton()).keyboardShortcut(.defaultAction)
+                    .disabled(isIncomplete || model.demoMode)
+            } else {
                 Button {
                     start()
                 } label: {
-                    Label("Dienst starten", systemImage: "play.fill")
+                    Label("Start", systemImage: "play.fill")
                 }.buttonStyle(AccentButton()).keyboardShortcut(.defaultAction)
-                    .disabled(
-                        name.isEmpty || command.isEmpty || directory.isEmpty || model.demoMode || model.isLaunching)
+                    .disabled(isIncomplete || model.demoMode || model.isLaunching)
             }
-        }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
-            .task { focusedField = .name }
+        }
     }
 
     private func field(
@@ -338,15 +492,61 @@ struct LaunchForm: View {
         }
     }
 
-    private func start() {
-        let configuration = LaunchConfiguration(
-            name: name.trimmingCharacters(in: .whitespaces), command: command,
+    /// Opens in the folder typed so far, else in the folder of the last start.
+    private func chooseDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        let start =
+            LaunchDraft.projectDirectory(of: NSString(string: directory).expandingTildeInPath)
+            ?? LaunchDraft.projectDirectory(of: model.preferences.lastLaunchDirectory)
+        if let start { panel.directoryURL = URL(fileURLWithPath: start, isDirectory: true) }
+        if panel.runModal() == .OK, let url = panel.url { directory = url.path }
+    }
+
+    /// The fields as a configuration; an edit keeps the action's id, so its slot and output stay its own.
+    private func enteredConfiguration(id: UUID = UUID()) -> LaunchConfiguration {
+        LaunchConfiguration(
+            id: id, name: name.trimmingCharacters(in: .whitespaces), command: command,
             directory: NSString(string: directory).expandingTildeInPath)
+    }
+
+    private func start() {
+        let configuration = enteredConfiguration()
         do {
-            try configuration.validate()
+            try model.validateAction(configuration, saving: save)
             startedID = configuration.id
             model.run(configuration, save: save, fromForm: true)
         } catch { validation = error.localizedDescription }
+    }
+
+    private func saveEdit(of original: LaunchConfiguration) {
+        do { try model.saveAction(enteredConfiguration(id: original.id)) } catch {
+            validation = error.localizedDescription
+        }
+    }
+}
+
+/// Return never confirms it: deleting takes a deliberate click.
+struct ActionDeleteConfirmation: View {
+    @Bindable var model: MonitorModel
+    let configuration: LaunchConfiguration
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Delete “\(configuration.name)”?").font(.system(size: 17, weight: .medium))
+            Text("The saved action is removed. A running service keeps running.")
+                .font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(3)
+            HStack {
+                Spacer()
+                Button("Cancel") { model.dismissPanelDialog() }.buttonStyle(QuietButton())
+                    .keyboardShortcut(.cancelAction)
+                Button("Delete", role: .destructive) {
+                    model.dismissPanelDialog()
+                    model.deleteAction(configuration)
+                }.buttonStyle(QuietButton(tint: DS.red))
+            }
+        }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
     }
 }
 

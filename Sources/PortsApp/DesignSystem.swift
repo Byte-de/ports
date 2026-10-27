@@ -2,7 +2,7 @@ import AppKit
 import PortsCore
 import SwiftUI
 
-/// Shared by the floating window, menu extra and notch. Dimensions are in points.
+/// Shared by the window and the notch. Dimensions are in points.
 enum DS {
     static let panelWidth: CGFloat = 480
     static let panelRadius: CGFloat = 28
@@ -79,56 +79,6 @@ struct PanelGlass: View {
     }
 }
 
-/// MenuBarExtra draws Liquid Glass of its own behind the panel, in the system appearance, which showed as a light
-/// frame around a dark card with a different corner radius. The menu panel therefore fills that glass edge to edge
-/// and darkens it, so the system's shape is the only one.
-struct MenuPanelBackground: View {
-    private var accessibility = PanelAccessibility()
-
-    init() {}
-
-    var body: some View {
-        if accessibility.reduceTransparency {
-            DS.background
-        } else {
-            LinearGradient(colors: [.black.opacity(0.92), .black.opacity(0.70)], startPoint: .top, endPoint: .bottom)
-        }
-    }
-}
-
-/// Gives the menu extra's window the dark appearance before it first draws, so its glass matches the panel.
-struct MenuWindowAppearance: NSViewRepresentable {
-    final class AppearanceView: NSView {
-        override func viewWillMove(toWindow newWindow: NSWindow?) {
-            super.viewWillMove(toWindow: newWindow)
-            newWindow?.appearance = NSAppearance(named: .darkAqua)
-        }
-    }
-    func makeNSView(context: Context) -> AppearanceView { AppearanceView() }
-    func updateNSView(_ view: AppearanceView, context: Context) {}
-}
-
-/// Configure only our own SwiftUI window, never the menu extra or another app's window.
-struct FloatingWindowStyle: NSViewRepresentable {
-    final class WindowView: NSView {
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow()
-            guard let window else { return }
-            window.isOpaque = false
-            window.backgroundColor = .clear
-            window.hasShadow = false
-            window.titleVisibility = .hidden
-            window.titlebarAppearsTransparent = true
-            window.isMovableByWindowBackground = true
-            window.standardWindowButton(.closeButton)?.isHidden = true
-            window.standardWindowButton(.miniaturizeButton)?.isHidden = true
-            window.standardWindowButton(.zoomButton)?.isHidden = true
-        }
-    }
-    func makeNSView(context: Context) -> WindowView { WindowView() }
-    func updateNSView(_ view: WindowView, context: Context) {}
-}
-
 extension View {
     func surface(radius: CGFloat = 12) -> some View {
         background(DS.raised, in: RoundedRectangle(cornerRadius: radius))
@@ -199,35 +149,29 @@ struct IconButton: View {
     let help: LocalizedStringResource
     var tint: Color = DS.muted
     var selected = false
-    var immediateHelp = false
-    var systemForeground = false
+    /// Lets a row reveal its controls while one of them has keyboard focus.
+    var focusChanged: ((Bool) -> Void)?
     let action: () -> Void
     @State private var hovered = false
-    @FocusState private var focused: Bool
     @Environment(\.isEnabled) private var isEnabled
     private var accessibility = PanelAccessibility()
 
     init(
         symbol: String, help: LocalizedStringResource, tint: Color = DS.muted, selected: Bool = false,
-        immediateHelp: Bool = false, systemForeground: Bool = false, action: @escaping () -> Void
+        focusChanged: ((Bool) -> Void)? = nil, action: @escaping () -> Void
     ) {
         self.symbol = symbol
         self.help = help
         self.tint = tint
         self.selected = selected
-        self.immediateHelp = immediateHelp
-        self.systemForeground = systemForeground
+        self.focusChanged = focusChanged
         self.action = action
     }
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol).font(.system(size: 14, weight: .regular))
-                .foregroundStyle(
-                    systemForeground
-                        ? AnyShapeStyle(.primary)
-                        : AnyShapeStyle(selected || (hovered && tint == DS.muted) ? DS.text : tint)
-                )
+                .foregroundStyle(selected || (hovered && tint == DS.muted) ? DS.text : tint)
                 .frame(width: 40, height: 40)
                 .background(
                     selected ? Color.white.opacity(0.12) : (hovered ? .white.opacity(0.055) : .clear), in: Circle()
@@ -235,21 +179,69 @@ struct IconButton: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(PanelIconStyle())
-        .help(immediateHelp ? Text(verbatim: "") : Text(help)).accessibilityLabel(Text(help))
-        .focused($focused)
+        .modifier(FocusReporting(changed: focusChanged))
+        .help(Text(help)).accessibilityLabel(Text(help))
         .accessibilityAddTraits(selected ? .isSelected : [])
         .onHover { hovered = $0 }
         .opacity(isEnabled ? 1 : 0.28)
-        .overlay(alignment: .top) {
-            if immediateHelp && isEnabled && (hovered || focused) {
-                Text(help).font(.system(size: 11, weight: .medium)).foregroundStyle(DS.text)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(DS.surface, in: Capsule())
-                    .overlay(Capsule().strokeBorder(DS.line, lineWidth: 0.5))
-                    .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
-                    .fixedSize().offset(y: -32).allowsHitTesting(false).accessibilityHidden(true)
-            }
+        .animation(accessibility.reduceMotion ? nil : .easeOut(duration: 0.12), value: hovered)
+    }
+}
+
+/// Binds focus only for callers that listen, so a caller's own `.focused` binding stays the only one. A control that
+/// disappears while focused reports the loss, which its `@FocusState` no longer can.
+private struct FocusReporting: ViewModifier {
+    let changed: ((Bool) -> Void)?
+    @FocusState private var focused: Bool
+
+    func body(content: Content) -> some View {
+        if let changed {
+            content.focused($focused)
+                .onChange(of: focused) { _, focused in changed(focused) }
+                .onDisappear { changed(false) }
+        } else {
+            content
         }
+    }
+}
+
+/// A root in the bottom bar, named next to its symbol. It stays selected while a page is pushed over its root.
+struct NavigationTabButton: View {
+    let title: LocalizedStringResource
+    let symbol: String
+    let help: LocalizedStringResource
+    let selected: Bool
+    let action: () -> Void
+    @State private var hovered = false
+    private var accessibility = PanelAccessibility()
+
+    init(
+        title: LocalizedStringResource, symbol: String, help: LocalizedStringResource, selected: Bool,
+        action: @escaping () -> Void
+    ) {
+        self.title = title
+        self.symbol = symbol
+        self.help = help
+        self.selected = selected
+        self.action = action
+    }
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol).labelStyle(.titleAndIcon)
+                .font(.system(size: 12, weight: .medium))
+                // System styles keep the labels vibrant on the bar's glass.
+                .foregroundStyle(selected || hovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
+                .frame(width: 112, height: 40)
+                .background(
+                    selected ? Color.white.opacity(0.12) : (hovered ? .white.opacity(0.055) : .clear), in: Capsule()
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PanelIconStyle())
+        .help(Text(help))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .onHover { hovered = $0 }
         .animation(accessibility.reduceMotion ? nil : .easeOut(duration: 0.12), value: hovered)
     }
 }
@@ -299,13 +291,16 @@ private struct PanelIconStyle: ButtonStyle {
 struct EmptyState: View {
     let symbol: String
     let title: LocalizedStringResource
-    let detail: LocalizedStringResource
+    /// Left out when the title says it all.
+    var detail: LocalizedStringResource?
     var body: some View {
         VStack(spacing: 10) {
             Image(systemName: symbol).font(.system(size: 22, weight: .light)).foregroundStyle(DS.muted)
             Text(title).font(.system(size: 13, weight: .medium)).foregroundStyle(DS.text)
-            Text(detail).font(.system(size: 11)).foregroundStyle(DS.muted).multilineTextAlignment(.center)
-                .lineSpacing(3).frame(maxWidth: 310)
+            if let detail {
+                Text(detail).font(.system(size: 11)).foregroundStyle(DS.muted).multilineTextAlignment(.center)
+                    .lineSpacing(3).frame(maxWidth: 310)
+            }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(24)
     }
 }
@@ -322,6 +317,17 @@ enum Format {
         if seconds >= 3600 { return "\(seconds / 3600)h \((seconds % 3600) / 60)m" }
         if seconds >= 60 { return "\(seconds / 60)m" }
         return "\(seconds)s"
+    }
+    /// The uptime as VoiceOver should say it: whole words in the app's language, not the compact visual "1h 3m".
+    static func spokenUptime(_ start: Date) -> String {
+        Duration.seconds(max(0, Int(Date().timeIntervalSince(start))))
+            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide, maximumUnitCount: 2))
+    }
+    /// host:port for clients that take no URL, such as a database client. Wildcard binds name loopback, as the URL does.
+    static func hostAndPort(_ endpoint: ListeningEndpoint) -> String {
+        guard let host = endpoint.url?.host else { return "\(endpoint.address):\(endpoint.port)" }
+        // URL.host returns an IPv6 literal without its brackets.
+        return host.contains(":") ? "[\(host)]:\(endpoint.port)" : "\(host):\(endpoint.port)"
     }
     static func path(_ path: String) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -380,7 +386,7 @@ extension DS {
             ?? NSImage(systemSymbolName: "network", accessibilityDescription: nil) ?? NSImage()
         image.size = NSSize(width: 18, height: 18)
         image.isTemplate = true
-        // VoiceOver reads the menu bar item from its image.
+        // The status item's VoiceOver label starts with it.
         image.accessibilityDescription = AppInfo.name
         return image
     }()

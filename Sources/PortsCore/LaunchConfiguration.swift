@@ -24,10 +24,25 @@ public struct LaunchConfiguration: Identifiable, Codable, Equatable, Sendable {
             isDirectory.boolValue
         else { throw LaunchError.invalidDirectory }
     }
+
+    /// Whether another action in `configurations` has `name`. Names compare trimmed and ignore case and character width,
+    /// so “Web ” and “ｗｅｂ” would read as the same action in the list.
+    public static func isNameTaken(_ name: String, excluding id: UUID?, in configurations: [LaunchConfiguration])
+        -> Bool
+    {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return configurations.contains { configuration in
+            configuration.id != id
+                && configuration.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                    .compare(name, options: [.caseInsensitive, .widthInsensitive]) == .orderedSame
+        }
+    }
 }
 
 /// Envelope version 1. Fields added after the first schema are optional on disk and fall back to their defaults;
 /// present but malformed values still fail, so an unreadable file is preserved instead of overwritten.
+/// `favoriteProjects` and `groupsServicesByProject` are unused since the panel dropped project groups and favorites;
+/// they stay in the schema so existing files keep decoding and keep their values.
 public struct AppPreferences: Codable, Sendable {
     public var refreshInterval: Double = 3
     public var showOtherListeners: Bool = false

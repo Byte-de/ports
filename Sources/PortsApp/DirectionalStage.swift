@@ -109,35 +109,62 @@ private struct PageEntrance: AnimatableModifier {
     }
 }
 
-/// This order matches the visible navigation, including the separate Board tab.
-enum PanelPage: Int, Sendable {
-    case servers, projects, actions, overview, agents, board, activity, settings
+/// Pages pushed over a root that stays mounted underneath, so the root keeps its scroll position and state while it
+/// is covered. Only the top page is shown; going back reveals the root as it was left.
+struct PushStage<Destination: Hashable & Sendable, Root: View, Pushed: View>: View {
+    let destination: Destination?
+    let animated: Bool
+    @ViewBuilder let root: () -> Root
+    @ViewBuilder let pushed: (Destination) -> Pushed
+    private var accessibility = PanelAccessibility()
 
-    init(section: NavigationSection, mode: DisplayMode) {
-        if mode == .board && [.overview, .agents, .servers].contains(section) {
-            self = .board
-        } else {
-            switch section {
-            case .servers: self = .servers
-            case .projects: self = .projects
-            case .actions: self = .actions
-            case .overview: self = .overview
-            case .agents: self = .agents
-            case .activity: self = .activity
-            case .settings: self = .settings
-            }
-        }
+    init(
+        destination: Destination?, animated: Bool, @ViewBuilder root: @escaping () -> Root,
+        @ViewBuilder pushed: @escaping (Destination) -> Pushed
+    ) {
+        self.destination = destination
+        self.animated = animated
+        self.root = root
+        self.pushed = pushed
     }
 
-    var section: NavigationSection {
-        switch self {
-        case .servers: .servers
-        case .projects: .projects
-        case .actions: .actions
-        case .overview, .board: .overview
-        case .agents: .agents
-        case .activity: .activity
-        case .settings: .settings
+    var body: some View {
+        let covered = destination != nil
+        let travels = !accessibility.reduceMotion
+        ZStack(alignment: .top) {
+            root()
+                .blur(radius: covered && travels ? 2 : 0)
+                .opacity(covered ? 0 : 1)
+                .offset(x: covered && travels ? -6 : 0)
+                .animation(animation(entering: !covered), value: covered)
+                .allowsHitTesting(!covered)
+                .disabled(covered)
+                .accessibilityHidden(covered)
+            if let destination {
+                pushed(destination)
+                    // Polling and text layout inside the page must not inherit the push's animation.
+                    .transaction { $0.animation = nil }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .id(destination)
+                    .transition(transition)
+                    .zIndex(1)
+            }
         }
+        // The root keeps its own height underneath, so the stage takes the proposed height and clips the rest.
+        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+        .clipped()
+        .animation(animation(entering: covered), value: destination)
+    }
+
+    /// A page fades in over 0.15 s and out over 0.12 s. Reduce Motion fades everything over 0.10 s without travel.
+    private func animation(entering: Bool) -> Animation? {
+        guard animated else { return nil }
+        return PanelMotion.fade(accessibility.reduceMotion ? 0.10 : (entering ? 0.15 : 0.12))
+    }
+
+    private var transition: AnyTransition {
+        guard !accessibility.reduceMotion else { return .opacity }
+        return .modifier(
+            active: PageEntrance(progress: 0, offset: 12), identity: PageEntrance(progress: 1, offset: 12))
     }
 }

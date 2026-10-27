@@ -104,11 +104,20 @@ Added with the changes they cover; the release checklist takes them over.
 
 - Sharing indicator: the menu bar icon turns into a globe within 0.5 s of a
   share starting and returns to the port glyph once the last share has stopped.
-  VoiceOver reads “Byte Ports – public share active”, otherwise “Byte Ports”.
-  With the image label, the status item still opens the panel, binds the window
-  opener and shows its right-click menu. The compact notch shows an accent globe
-  after the counts, and VoiceOver reads “Open Byte Ports, public share active”.
-  Demo mode shows neither.
+  VoiceOver reads “Byte Ports – public share active, <count>”, otherwise
+  “Byte Ports, <count>”. The compact notch shows an accent globe after the
+  counts, and VoiceOver reads “Open Byte Ports, public share active”. Demo mode
+  shows neither.
+- One panel: with the notch on, a click on the menu bar item expands the notch
+  panel with squircle corners and a second click collapses it; no other window
+  appears. With the notch off, the click shows the floating squircle window;
+  after moving it, closing it (⌘W or a click on the item) and quitting, it comes
+  back at the same position; the first time it is centred on the screen with
+  the menu bar item. Right-click and Control-click show Open, Settings… and
+  Quit. ⌘, and Settings… open settings in the panel at home. No white frame in
+  light or dark appearance. VO-Space on the item toggles the panel.
+  `--onboarding` runs in the window and, with the notch chosen, hands over to
+  the notch.
 - With the Ports item hidden in System Settings › Menu Bar, the globe is hidden
   too, as the README states; the service row and the notch still show the share.
 
@@ -129,6 +138,6 @@ enter from the opposite edge to the departing page. Rapid reversals preserve
 identity and cancel stale cleanup. Reduce Motion removes spatial/blur/height motion
 and uses a short opacity change. Only the active presentation surface resizes.
 
-The window, menu and notch share presentation coordination. Inline forms and
+The window and the notch share presentation coordination. Inline forms and
 confirmations replace the panel body instead of adding nested borderless sheets.
 A compact notch may coexist with a full panel; two expanded panels must not.

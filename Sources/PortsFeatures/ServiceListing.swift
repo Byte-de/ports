@@ -1,7 +1,7 @@
 import Foundation
 import PortsCore
 
-/// Single source of truth for what the menu bar, header, notch and the Services filter call a server or an agent.
+/// Single source of truth for what the menu bar, notch and the Servers and Agents tabs call a server or an agent.
 /// Servers and agents partition the list: a server is everything that is not an agent, so dev servers
 /// and, when shown, other TCP listeners. An agent that owns a port stays an agent.
 public enum ServiceFilter: String, CaseIterable, Sendable {
@@ -49,5 +49,41 @@ public enum ServiceListing {
             ]
             + service.endpoints.map { String($0.port) }
         return fields.contains { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    /// Services of one project sit together and keep the input order. Projects sort by folder name as Finder does,
+    /// then by path so two folders with the same name stay apart; services without a project come last.
+    public static func groupedByProject(_ services: [ServiceRecord]) -> [ServiceRecord] {
+        Dictionary(grouping: services, by: \.projectDirectory).values
+            .sorted { projectPrecedes($0[0], $1[0]) }
+            .flatMap { $0 }
+    }
+
+    private static func projectPrecedes(_ lhs: ServiceRecord, _ rhs: ServiceRecord) -> Bool {
+        guard let left = lhs.projectDirectory, let right = rhs.projectDirectory else {
+            return lhs.projectDirectory != nil
+        }
+        for order in [
+            lhs.process.projectName.localizedStandardCompare(rhs.process.projectName),
+            left.localizedStandardCompare(right),
+        ] where order != .orderedSame {
+            return order == .orderedAscending
+        }
+        return left < right
+    }
+}
+
+/// What a click on a service row does: open what the row stands for when that is certain, otherwise show details.
+public enum ServicePrimaryAction: Equatable, Sendable {
+    case openURL(URL)
+    case activate, showDetails
+
+    /// A paused process opens details. An agent comes forward only when it is an app (`canActivate`): no terminal can
+    /// attach to a running command-line session. A server opens in the browser only when it speaks HTTP.
+    public static func resolve(for service: ServiceRecord, speaksHTTP: Bool, canActivate: Bool) -> Self {
+        guard service.process.state == .running else { return .showDetails }
+        if service.kind == .agent { return canActivate ? .activate : .showDetails }
+        if speaksHTTP, let url = service.primaryEndpoint?.url { return .openURL(url) }
+        return .showDetails
     }
 }

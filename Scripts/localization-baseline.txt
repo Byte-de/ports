@@ -1,49 +1,21 @@
-%@ erkannt
 %@ gestartet
-%@ nicht mehr aktiv
-%@ stoppen?
-%@ stoppen…
-%@ · Details anzeigen
-%@ · Stop angefragt
-%@ · fortgesetzt
-%@ · pausiert
-%@, %@, läuft. Details anzeigen
-%@, %@, pausiert. Details anzeigen
-%@: Stop angefragt
-%@: fortgesetzt
-%@: pausiert
-%lld Agenten · %lld Dev-Server
 %lld Server erkannt
 %lld von %lld
 /Pfad/zum/Projekt
-AI-Agenten
 Abbrechen
 Agenten
 Agenten und Server erscheinen automatisch im Panel.
-Aktion entfernen
 Aktion hinzufügen
-Aktionen
-Aktivität
 Aktualisieren
-Aktualisieren (⌘R)
 Alle TCP-Listener anzeigen
 Alles bereit.
-Als Startaktion speichern
 Am oberen Bildschirmrand.\nAuch auf Macs ohne Notch.
 Anzeigename
-App öffnen
-Arbeitsbereich
 Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.
-Ausgabe
-Ausgabe kopieren
-Auswählen…
-Automatische Erkennung pausiert
-BEFEHL
 Beenden
 Beispieldaten · Prozessaktionen sind deaktiviert
 Bereit
 Bereit für deinen ersten Dienst
-Board
 Byte Ports ist aktuell.
 Byte Ports liest Prozesse des angemeldeten Benutzers und deren TCP-Listener. Chat-Inhalte und Aufgabenfortschritt werden nicht ausgelesen. Agenten in entfernten Umgebungen oder innerhalb von Containern benötigen eigene Integrationen. Ports sind Listener-Nachweise, keine HTTP-Healthchecks. Externe Prozesse bieten keine nachträglich abrufbaren stdout-Logs.
 Byte Ports öffnen
@@ -56,15 +28,8 @@ Deine Agenten und Dev-Server im Blick.
 Demo
 Demo ansehen
 Demo öffnen
-Der Status beschreibt den Prozess. Chat-Inhalte und Aufgabenfortschritt werden nicht ausgelesen.
-Details anzeigen
-Dev-Server
 Die Update-Prüfung ist fehlgeschlagen. Bitte versuche es später erneut.
 Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.
-Dienst
-Dienst starten
-Dienst starten (⌘N)
-Dienst starten…
 ERKENNUNG
 Eigene Agenten
 Ein Befehl. Ein Klick.
@@ -73,16 +38,9 @@ Ein Teil der Listener ist gerade nicht lesbar. Details findest du im Panel.
 Ein kompaktes Fenster.\nFrei auf dem Bildschirm platzierbar.
 Einführung abschließen und bisherige Einstellungen beibehalten
 Einführung ansehen
-Einführung in Byte Ports…
 Einführung schließen
 Einführung schließen (Esc)
-Einführung öffnen
-Einstellungen
-Einstellungen (⌘,)
 Einstellungen konnten nicht gespeichert werden
-Einstellungen…
-Erkennung fortsetzen
-Erkennung pausieren
 Erneut versuchen
 Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.
 Exakter Dateiname oder Einstiegsskript, ohne Dateiendung.
@@ -95,64 +53,30 @@ Freigabelink kopieren: %@
 Freigabelink kopiert
 Hinweis schließen
 Hinzufügen
-Im Browser öffnen
 Im Finder öffnen
-Im Terminal oder als App öffnen
 Immer in Reichweite.
 Intervall
-Keine Prozesse
-Keine Treffer
-Keine aktiven Agenten
-Keine aktiven Dienste
-Keine aktiven Projekte
 Kopiert
-Laufende Agenten und Dev-Server erscheinen automatisch hier.
-Laufende Prozesse werden erfasst…
-Laufzeit
-Letzte 256 KB · stdout + stderr
 Live anzeigen
 Live-Erkennung startet beim Öffnen
 Lokale Erkennung. Ohne Telemetrie.
 Los geht’s
 Läuft
 Mit Notch-Panel
-NAME
-Nach Projekt, Agent, PID oder Port suchen
 Nach Updates suchen
-Nach Updates suchen…
-Noch keine Ausgabe…
-Noch keine Ereignisse
-Notch-Panel
-Notch-Panel zusätzlich verwenden
 OK
 Ohne Speichern fortfahren
 Ohne Speichern gilt deine Auswahl nur für diese Sitzung. Die vorhandene Datei bleibt erhalten.
-PID %@
 PID %@ · %@
-PID kopieren
-PID kopiert
 PROJEKTORDNER
-Panel einklappen
 Pausieren
 Pausiert
 Port %@
 Port %@ · Abbrechen jederzeit möglich
-Projekt anheften
-Projekt öffnen
-Projekt, Agent, PID oder Port
-Projekte
-Projekte erscheinen zusammen mit ihren Agenten und Servern.
-Prozess beendet
 Prozess läuft
-Prozess nicht mehr aktiv
-Prozess stoppen…
-Prozesse
-Prozesse werden erfasst…
 Regel entfernen
 SCHNELLER ZUGRIFF
 STARTBEFEHL
-Scan fortsetzen
-Scan pausieren
 Schließen
 Schritt %lld von %lld: %@
 Server
@@ -160,15 +84,8 @@ Server öffentlich teilen?
 Speichere einen Startbefehl mit seinem Projektordner.
 Startbefehl kopieren
 Starte deine Agenten und Server wie gewohnt.
-Starts, beendete Prozesse und deine Aktionen erscheinen hier.
 Stoppen
-Stoppen…
-Suche nach Projekt, Agent, PID oder Port.
 Suche schließen
-Suchen (⌘F)
-Terminal
-URL kopieren
-URL kopiert
 Update wird geprüft…
 Version %@ laden ↗
 Vorheriger Schritt
@@ -176,14 +93,10 @@ Weiter
 Willkommen
 Willkommen bei Byte Ports
 Wähle deinen Schnellzugriff.
-Zum Beispiel: Frontend
 Zurück
-Zusätzlich am oberen Bildschirmrand.
 z. B. my-agent
 Öffentlich teilen
 Öffentlich teilen verbindet den gewählten HTTP-Server mit Cloudflare. Jeder mit dem Link kann ihn aufrufen. Freigaben enden beim Stoppen oder Beenden von Byte Ports. Die manuelle Update-Prüfung fragt GitHub nach der neuesten Version.
 Öffnen
 Über Byte Ports
-Über den Zurück-Pfeil gelangst du zur Liste.
-Übersicht
 Überspringen

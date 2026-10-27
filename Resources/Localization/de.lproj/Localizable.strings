@@ -2,22 +2,47 @@
 
 /* MARK: Shared */
 "Cancel" = "Abbrechen";
+"Copy URL" = "URL kopieren";
+"Detecting services…" = "Dienste werden erkannt…";
+"Detection paused" = "Erkennung pausiert";
 "Not responding" = "Reagiert nicht";
 "Open %@" = "%@ öffnen";
+"Open in browser" = "Im Browser öffnen";
 "Quit %@" = "%@ beenden";
+"Resume" = "Fortsetzen";
+"Stop “%@”?" = "„%@“ stoppen?";
 "Stopped" = "Gestoppt";
 "Stopping…" = "Wird gestoppt…";
 "The app is quitting." = "Die App wird gerade beendet.";
 
 /* MARK: Sources/PortsApp/ActionsView.swift */
+"COMMAND" = "BEFEHL";
+"Choose…" = "Auswählen…";
 "Clear Finished" = "Beendete entfernen";
 "Copy Command" = "Befehl kopieren";
+"Copy Output" = "Ausgabe kopieren";
+"Currently running. Changes apply from the next start." = "Läuft gerade. Änderungen gelten ab dem nächsten Start.";
+"Delete" = "Löschen";
+"Delete “%@”?" = "„%@“ löschen?";
+"Delete…" = "Löschen…";
+"Edit" = "Bearbeiten";
+"Edit Action" = "Aktion bearbeiten";
+"Edit…" = "Bearbeiten…";
 "Exited" = "Beendet";
 "Failed · exit %d" = "Fehlgeschlagen · Exit %d";
+"For example: %@" = "Zum Beispiel: %@";
+"For example: Frontend" = "Zum Beispiel: Frontend";
 "Force Stop" = "Sofort beenden";
 "Force Stop…" = "Sofort beenden…";
 "Force stop “%@”?" = "„%@“ sofort beenden?";
+"Last 256 KB · stdout + stderr" = "Letzte 256 KB · stdout + stderr";
 "Loading shell environment…" = "Shell-Umgebung wird geladen…";
+"NAME" = "NAME";
+"New Action" = "Neue Aktion";
+"New output" = "Neue Ausgabe";
+"No output yet…" = "Noch keine Ausgabe…";
+"Output copied" = "Ausgabe kopiert";
+"PROJECT FOLDER" = "PROJEKTORDNER";
 "RUN ONCE" = "EINMALIG GESTARTET";
 "Remove from List" = "Aus Liste entfernen";
 "Restart" = "Neu starten";
@@ -25,11 +50,13 @@
 "Running · %@" = "Läuft · %@";
 "Runs in zsh with your shell's environment variables. Aliases aren't available." = "Läuft in zsh mit den Umgebungsvariablen deiner Shell. Aliase sind nicht verfügbar.";
 "SAVED" = "GESPEICHERT";
+"Save" = "Sichern";
+"Save as action" = "Als Aktion speichern";
 "Show Output" = "Ausgabe anzeigen";
 "Start" = "Starten";
 "Start Again" = "Erneut starten";
 "Start “%@”" = "„%@“ starten";
-"Stop “%@”?" = "„%@“ stoppen?";
+"The saved action is removed. A running service keeps running." = "Die gespeicherte Aktion wird entfernt. Ein laufender Dienst läuft weiter.";
 "The service and its subprocesses will be asked to quit." = "Der Dienst und seine Unterprozesse werden zum Beenden aufgefordert.";
 "job.stop" = "Stoppen";
 "job.stopEllipsis" = "Stoppen…";
@@ -37,13 +64,14 @@
 "“%@” isn't responding to Stop. Force Stop ends the service and its subprocesses without cleanup; unsaved data may be lost. It restarts afterwards." = "„%@“ reagiert nicht auf Stoppen. Sofort beenden schließt den Dienst und seine Unterprozesse ohne Aufräumen; ungesicherte Daten können verloren gehen. Danach wird er neu gestartet.";
 
 /* MARK: Sources/PortsApp/ActivityView.swift */
-
-/* MARK: Sources/PortsApp/CompactMonitorView.swift */
+"Detected and ended services and your actions appear here." = "Erkannte und beendete Dienste sowie deine Aktionen erscheinen hier.";
+"No activity yet" = "Noch keine Aktivität";
 
 /* MARK: Sources/PortsApp/DesignSystem.swift */
 "all interfaces" = "alle Schnittstellen";
 
 /* MARK: Sources/PortsApp/LaunchModel.swift */
+"Action deleted" = "Aktion gelöscht";
 "“%@” exited" = "„%@“ beendet";
 "“%@” failed · exit %d" = "„%@“ fehlgeschlagen · Exit %d";
 "“%@” force stopped" = "„%@“ sofort beendet";
@@ -52,7 +80,18 @@
 "“%@” restarted" = "„%@“ neu gestartet";
 "“%@” stopped" = "„%@“ gestoppt";
 
+/* MARK: Sources/PortsApp/LogTextView.swift */
+"Output of %@" = "Ausgabe von %@";
+
 /* MARK: Sources/PortsApp/MonitorModel.swift */
+"%@ detected" = "%@ erkannt";
+"%@ is no longer active" = "%@ nicht mehr aktiv";
+"%@ · paused" = "%@ · pausiert";
+"%@ · resumed" = "%@ · fortgesetzt";
+"%@ · stop requested" = "%@ · Stoppen angefordert";
+"%@: paused" = "%@: pausiert";
+"%@: resumed" = "%@: fortgesetzt";
+"%@: stop requested" = "%@: Stoppen angefordert";
 "Saving is turned off so the unreadable settings file is kept. The README has details." = "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README.";
 "Terminal wasn't found." = "Terminal wurde nicht gefunden.";
 "The address couldn't be opened." = "Die Adresse konnte nicht geöffnet werden.";
@@ -61,12 +100,34 @@
 "The settings can't be read, so sharing wasn't started." = "Die Einstellungen sind nicht lesbar. Die Freigabe wurde nicht gestartet.";
 
 /* MARK: Sources/PortsApp/MonitorPanel.swift */
+"Actions" = "Aktionen";
+"Actions (⌘%@)" = "Aktionen (⌘%@)";
+"Activity" = "Aktivität";
+"Agents" = "Agenten";
+"Agents (⌘%@)" = "Agenten (⌘%@)";
+"Back (⌘[)" = "Zurück (⌘[)";
+"Close window (⌘W)" = "Fenster schließen (⌘W)";
+"Collapse panel" = "Panel einklappen";
 "Detection failed: %@" = "Erkennung fehlgeschlagen: %@";
+"New Action (⌘N)" = "Neue Aktion (⌘N)";
+"Output" = "Ausgabe";
+"Project, name, PID or port" = "Projekt, Name, PID oder Port";
+"Resume detection" = "Erkennung fortsetzen";
+"Search (⌘F)" = "Suchen (⌘F)";
+"Search activity" = "Aktivität durchsuchen";
+"Search by project, name, PID or port" = "Nach Projekt, Name, PID oder Port suchen";
+"Servers" = "Server";
+"Servers (⌘%@)" = "Server (⌘%@)";
+"Service ended" = "Dienst beendet";
+"Settings" = "Einstellungen";
+"Settings (⌘,)" = "Einstellungen (⌘,)";
+"detection.paused" = "Pausiert";
 
 /* MARK: Sources/PortsApp/NotchController.swift */
 "Open %@, public share active" = "%@ öffnen, öffentliche Freigabe aktiv";
 
 /* MARK: Sources/PortsApp/OnboardingView.swift */
+"Use the notch panel" = "Notch-Panel verwenden";
 
 /* MARK: Sources/PortsApp/PanelError.swift */
 "Couldn't open" = "Öffnen nicht möglich";
@@ -82,9 +143,11 @@
 "Sharing didn't stop" = "Freigabe nicht beendet";
 
 /* MARK: Sources/PortsApp/PortsApp.swift */
-"%@ – public share active" = "%@ – öffentliche Freigabe aktiv";
 
 /* MARK: Sources/PortsApp/PreferencesView.swift */
+"Automatic detection" = "Automatische Erkennung";
+"Notch panel" = "Notch-Panel";
+"Opens %@ at the top of the screen instead of in a window." = "Öffnet %@ oben am Bildschirmrand statt im Fenster.";
 
 /* MARK: Sources/PortsApp/QuitCoordinator.swift */
 "Active shares end as well." = "Aktive Freigaben werden ebenfalls beendet.";
@@ -100,11 +163,42 @@
 "Stopping services…" = "Dienste werden gestoppt…";
 
 /* MARK: Sources/PortsApp/ServiceViews.swift */
+"%@, %@, paused" = "%@, %@, pausiert";
+"%@, %@, running for %@" = "%@, %@, läuft seit %@";
+"Address copied" = "Adresse kopiert";
+"Copy Address" = "Adresse kopieren";
+"Copy Launch Command" = "Startbefehl kopieren";
+"Copy Share Link" = "Freigabelink kopieren";
 "Current work in “%@” will be interrupted. The process won't restart automatically." = "Die laufende Arbeit in „%@“ wird unterbrochen. Der Prozess startet nicht automatisch neu.";
 "Desktop app" = "Desktop-App";
+"Details" = "Details";
+"New Action in This Folder…" = "Neue Aktion in diesem Ordner…";
+"Open App" = "App öffnen";
+"Open app" = "App öffnen";
+"Open in Browser" = "Im Browser öffnen";
+"PID %@" = "PID %@";
+"Pause" = "Pausieren";
+"Service no longer running" = "Dienst nicht mehr aktiv";
+"Share Publicly" = "Öffentlich teilen";
+"Show details" = "Details anzeigen";
+"Show in Finder" = "Im Finder zeigen";
 "The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
+"URL copied" = "URL kopiert";
+"no project" = "ohne Projekt";
+"service.stop" = "Stoppen";
+"service.stopEllipsis" = "Stoppen…";
 
-/* MARK: Sources/PortsApp/StatusItemMenu.swift */
+/* MARK: Sources/PortsApp/ServicesPage.swift */
+"New services appear once detection resumes." = "Neue Dienste erscheinen, sobald die Erkennung wieder läuft.";
+"No active agents" = "Keine aktiven Agenten";
+"No active servers" = "Keine aktiven Server";
+"No matches" = "Keine Treffer";
+"Search by project, name, PID or port." = "Suche nach Projekt, Name, PID oder Port.";
+"Start a dev server as usual or from Actions." = "Starte einen Dev-Server wie gewohnt oder über Aktionen.";
+"Supported agents appear automatically. Add your own in Settings." = "Unterstützte Agenten erscheinen automatisch. Eigene fügst du in den Einstellungen hinzu.";
+
+/* MARK: Sources/PortsApp/StatusItemController.swift */
+"%@ – public share active" = "%@ – öffentliche Freigabe aktiv";
 "Settings…" = "Einstellungen…";
 
 /* MARK: Sources/PortsApp/TunnelModel.swift */
@@ -120,18 +214,13 @@
 "ADDRESSES" = "ADRESSEN";
 "Also reachable on your network" = "Auch im Netzwerk erreichbar";
 "Anyone with the link can reach this server through Cloudflare, without a password. Sharing ends when you stop it or quit the app." = "Jeder mit dem Link erreicht diesen Server über Cloudflare, ohne Passwort. Die Freigabe endet, wenn du sie stoppst oder die App beendest.";
-"Copy URL" = "URL kopieren";
 "Copy share link" = "Freigabelink kopieren";
 "Doesn't answer HTTP – can't be shared" = "Antwortet nicht über HTTP – Teilen nicht möglich";
 "No HTTP" = "Kein HTTP";
-"Open in browser" = "Im Browser öffnen";
 "Preparing share…" = "Freigabe wird vorbereitet…";
 "Share publicly" = "Öffentlich teilen";
 
 /* MARK: Sources/PortsApp/UpdateModel.swift */
-
-/* MARK: Sources/PortsApp/WorkspaceViews.swift */
-"No project" = "Ohne Projekt";
 
 /* MARK: Sources/PortsCore/CloudflareTunnel.swift */
 "Only running local HTTP development servers can be shared." = "Nur laufende lokale HTTP-Dev-Server können geteilt werden.";

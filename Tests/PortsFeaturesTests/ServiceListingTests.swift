@@ -1,3 +1,4 @@
+import Foundation
 import PortsCore
 import PortsFeatures
 import Testing
@@ -74,5 +75,61 @@ struct ServiceListingTests {
 
     @Test func blankSearchMatchesEverything() {
         #expect(pids(.all, search: "  ", showsListeners: true) == pids(.all, showsListeners: true))
+    }
+
+    @Test func projectsSitTogetherSortedByNameWithUnassignedLast() {
+        let desktop = ServiceRecord(
+            process: ProcessRecord(
+                identity: .init(pid: 6, startSeconds: 100), name: "claude", executable: "/Applications/Claude.app",
+                workingDirectory: "/Users/dev/claude"),
+            kind: .agent, framework: "Agent", isDesktopApplication: true)
+        let services = [
+            service(.server, pid: 1, title: "Vite", directory: "/z/alpha"),
+            service(.server, pid: 2, title: "Next.js", directory: "/a/zeta"),
+            service(.agent, pid: 3, title: "Codex", directory: "/"),
+            service(.server, pid: 4, title: "Astro", directory: "/b/beta"),
+            service(.server, pid: 5, title: "Rails", directory: "/a/beta"),
+            desktop,
+            service(.listener, pid: 7, title: "postgres", directory: "/z/alpha/"),
+            service(.server, pid: 8, title: "Hugo", directory: "/b/beta"),
+        ]
+        let grouped = ServiceListing.groupedByProject(services)
+        #expect(
+            grouped.map(\.projectDirectory) == [
+                "/z/alpha", "/z/alpha", "/a/beta", "/b/beta", "/b/beta", "/a/zeta", nil, nil,
+            ])
+        // Inside a project and among services without one, the input order stays.
+        #expect(grouped.map(\.id.pid) == [1, 7, 5, 4, 8, 2, 3, 6])
+        #expect(ServiceListing.groupedByProject(grouped).map(\.id.pid) == grouped.map(\.id.pid))
+        #expect(ServiceListing.groupedByProject([]).isEmpty)
+    }
+
+    @Test func primaryActionPerKind() {
+        let vite = service(.server, pid: 42, title: "Vite", ports: [5173])
+        let claude = service(.agent, pid: 7, title: "Claude", ports: [8787])
+        let postgres = service(.listener, pid: 88, title: "postgres", ports: [5432])
+        func action(_ service: ServiceRecord, http: Bool = false, activate: Bool = false) -> ServicePrimaryAction {
+            ServicePrimaryAction.resolve(for: service, speaksHTTP: http, canActivate: activate)
+        }
+        #expect(action(vite, http: true) == .openURL(URL(string: "http://127.0.0.1:5173")!))
+        #expect(action(vite) == .showDetails)
+        #expect(action(service(.server, pid: 1, title: "Vite"), http: true) == .showDetails)
+        #expect(action(postgres) == .showDetails)
+        // An agent never opens its port: an app comes forward, a command-line session shows details.
+        #expect(action(claude, http: true, activate: true) == .activate)
+        #expect(action(claude, http: true) == .showDetails)
+        // A paused process opens details, whatever it is.
+        #expect(action(paused(vite), http: true) == .showDetails)
+        #expect(action(paused(claude), activate: true) == .showDetails)
+    }
+
+    private func paused(_ service: ServiceRecord) -> ServiceRecord {
+        let process = service.process
+        return ServiceRecord(
+            process: ProcessRecord(
+                identity: process.identity, name: process.name, executable: process.executable,
+                workingDirectory: process.workingDirectory, state: .paused),
+            kind: service.kind, provider: service.provider, framework: service.framework,
+            endpoints: service.endpoints)
     }
 }

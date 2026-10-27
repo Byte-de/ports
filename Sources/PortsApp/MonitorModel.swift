@@ -4,34 +4,6 @@ import PortsCore
 import PortsFeatures
 import SwiftUI
 
-enum NavigationSection: String, CaseIterable, Identifiable {
-    case overview, agents, servers, projects, actions, activity, settings
-    var id: String { rawValue }
-    var title: LocalizedStringResource {
-        switch self {
-        case .overview: "Prozesse"
-        case .agents: "Agenten"
-        case .servers: "Server"
-        case .projects: "Projekte"
-        case .actions: "Aktionen"
-        case .activity: "Aktivität"
-        case .settings: "Einstellungen"
-        }
-    }
-    var symbol: String {
-        switch self {
-        case .overview: "rectangle.stack"
-        case .agents: "sparkles"
-        case .servers: "server.rack"
-        case .projects: "folder"
-        case .actions: "bolt"
-        case .activity: "clock.arrow.circlepath"
-        case .settings: "slider.horizontal.3"
-        }
-    }
-}
-
-enum DisplayMode: String, CaseIterable { case list, board }
 struct ActivityEntry: Identifiable {
     let id = UUID()
     let date: Date
@@ -49,6 +21,15 @@ struct PendingForceStop {
     let job: LaunchRecord
     let restartAfter: Bool
 }
+/// The launch form on screen. Every presentation has its own id, so the form starts from its request's fields.
+struct LaunchFormRequest: Identifiable {
+    enum Mode {
+        case create(LaunchDraft)
+        case edit(LaunchConfiguration)
+    }
+    let id = UUID()
+    let mode: Mode
+}
 
 /// Settings folders of earlier app names, newest first: pre-release builds were called Byte Relay, the internal
 /// prototype DevScope. The case label goes to the log.
@@ -62,23 +43,17 @@ private enum LegacyPreferences: String, CaseIterable {
 
 @MainActor @Observable
 final class MonitorModel {
-    var section: NavigationSection = .servers
-    var displayMode: DisplayMode = .list
+    /// Shared by every surface: one panel is on screen at a time.
+    var navigation = PanelNavigation()
     var navigationUsesMotion = false
-    var search = ""
-    var selectedID: ProcessIdentity?
-    var showingDetails = false
-    var showingLogs = false
     var presentationSurface: MonitorSurface = .window
     var snapshot = ScanSnapshot(services: [], processCount: 0)
     var hasScanned = false
-    var isScanning = false
     var isLaunching = false
     /// Rows whose start or restart waits for the shell environment.
     var loadingShellEnvironment: Set<UUID> = []
     /// The form's start while it waits for the shell environment. Dismissing the form clears it to cancel the start.
     var pendingFormLaunch: UUID?
-    var isMonitoring = true
     var demoMode = false
     var panelError: PanelError?
     /// Shown inline instead of an alert, because scans repeat every few seconds.
@@ -91,10 +66,10 @@ final class MonitorModel {
     var pendingForceStop: PendingForceStop?
     var pendingShare: TunnelTarget?
     var updateStatus: UpdateStatus = .idle
-    var showLaunchForm = false
+    var launchForm: LaunchFormRequest?
+    /// A saved action awaiting confirmation of its deletion.
+    var pendingActionDeletion: LaunchConfiguration?
     var onboardingSession: UUID?
-    var logJobID: UUID?
-    var logs = ""
     var launches: [LaunchRecord] = []
     var activity: [ActivityEntry] = []
     var preferences: AppPreferences
@@ -126,14 +101,13 @@ final class MonitorModel {
     @ObservationIgnored private var scanGeneration = 0
     @ObservationIgnored private lazy var refresher = RefreshCoalescer { [weak self] in await self?.scanOnce() }
     @ObservationIgnored private var loopTask: Task<Void, Never>?
-    @ObservationIgnored private var visibleSurfaces: Set<MonitorSurface> = []
+    /// Observed, so the output page reads new output only while its surface is on screen.
+    private var visibleSurfaces: Set<MonitorSurface> = []
     @ObservationIgnored private var systemIdle = false
     @ObservationIgnored private var nextScanWait: Task<Void, Never>?
     @ObservationIgnored private var scanRequested = false
     @ObservationIgnored private var systemObservers: [any NSObjectProtocol] = []
     @ObservationIgnored private var toastTask: Task<Void, Never>?
-    @ObservationIgnored private(set) var revealWindow: (() -> Void)?
-    @ObservationIgnored private var windowRevealPending = false
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -165,7 +139,6 @@ final class MonitorModel {
             demoMode = true
             snapshot = DemoData.snapshot
             hasScanned = true
-            selectedID = snapshot.services.first?.id
         }
         if arguments.contains("--onboarding") || (!preferences.hasCompletedOnboarding && !demoMode) {
             onboardingSession = UUID()
@@ -173,42 +146,29 @@ final class MonitorModel {
     }
 
     var services: [ServiceRecord] { snapshot.services }
-    var selected: ServiceRecord? { services.first { $0.id == selectedID } }
     var visibleUniverse: [ServiceRecord] {
         ServiceListing.visible(services, filter: .all, search: "", showsListeners: preferences.showOtherListeners)
     }
     var counts: ServiceCounts { ServiceCounts(visibleUniverse) }
 
-    /// The menu bar label and the main window both bind the opener, so a hidden menu bar item cannot leave the app
-    /// without one. A reveal requested before either appeared runs on the first binding.
-    func bindWindowOpener(_ open: @escaping () -> Void) {
-        revealWindow = {
-            if PanelWindowCoordinator.shared.revealNotchIfHome() { return }
-            guard PanelWindowCoordinator.shared.prepareMainWindow() else { return }
-            open()
-            NSApp.activate()
-            PanelWindowCoordinator.shared.bringMainWindowForward()
-        }
-        if windowRevealPending {
-            windowRevealPending = false
-            revealWindow?()
-        }
+    /// Automatic detection. A pause is a saved setting, so it survives a relaunch.
+    var isMonitoring: Bool { preferences.detectsAutomatically }
+
+    /// The one way to pause or resume: Settings, the paused badge and the menu command. Resuming scans at once.
+    func setMonitoring(_ enabled: Bool) {
+        guard enabled != preferences.detectsAutomatically else { return }
+        preferences.detectsAutomatically = enabled
+        PortsLog.scan.notice("Automatic detection \(enabled ? "resumed" : "paused", privacy: .public)")
+        savePreferences()
+        if enabled && !demoMode { wakeScanLoop() }
     }
 
-    func showMainWindow() {
-        // The notch needs no window opener.
-        if PanelWindowCoordinator.shared.revealNotchIfHome() { return }
-        guard let revealWindow else {
-            windowRevealPending = true
-            PortsLog.lifecycle.error("Main window requested before any view bound the window opener")
-            return
-        }
-        revealWindow()
-    }
+    /// Shows the panel at home: the expanded notch while it is enabled, otherwise the window.
+    func showMainWindow() { PanelWindowCoordinator.shared.showHome() }
 
     var hasBlockingPanelDialog: Bool {
-        showLaunchForm || pendingAction != nil || pendingJobStop != nil || pendingForceStop != nil
-            || pendingShare != nil
+        launchForm != nil || pendingActionDeletion != nil || pendingAction != nil || pendingJobStop != nil
+            || pendingForceStop != nil || pendingShare != nil
     }
     var hasPanelDialog: Bool { hasBlockingPanelDialog || panelError != nil }
 
@@ -227,8 +187,9 @@ final class MonitorModel {
 
     func dismissPanelDialog() {
         dialogUsesMotion = PanelMotion.isPointerEvent
-        showLaunchForm = false
+        launchForm = nil
         pendingFormLaunch = nil
+        pendingActionDeletion = nil
         pendingAction = nil
         pendingJobStop = nil
         pendingForceStop = nil
@@ -250,19 +211,70 @@ final class MonitorModel {
             share(target, from: presentationSurface)
         } catch { report(error, as: .share) }
     }
-    var filteredServices: [ServiceRecord] {
-        filteredServices(in: section)
+
+    /// A tab's services, with the services of one project next to each other.
+    func visibleServices(_ filter: ServiceFilter, search: String) -> [ServiceRecord] {
+        ServiceListing.groupedByProject(
+            ServiceListing.visible(
+                services, filter: filter, search: search, showsListeners: preferences.showOtherListeners))
     }
 
-    func filteredServices(in section: NavigationSection) -> [ServiceRecord] {
-        let filter: ServiceFilter =
-            switch section {
-            case .agents: .agents
-            case .servers: .servers
-            default: .all
-            }
-        return ServiceListing.visible(
-            services, filter: filter, search: search, showsListeners: preferences.showOtherListeners)
+    /// nil once the process has exited; its details then stay open with an empty state.
+    func service(for id: ProcessIdentity) -> ServiceRecord? { services.first { $0.id == id } }
+
+    /// The job whose output is the page on top.
+    var outputJobID: UUID? {
+        if case .output(let id) = navigation.top { return id }
+        return nil
+    }
+
+    /// Shows a tab's root; selecting the open tab again pops to it.
+    func select(_ tab: PanelTab) {
+        navigationUsesMotion = PanelMotion.animatesInteraction
+        navigation.select(tab)
+    }
+
+    func push(_ destination: PanelDestination) {
+        navigationUsesMotion = PanelMotion.animatesInteraction
+        navigation.push(destination)
+    }
+
+    func goBack() {
+        navigationUsesMotion = PanelMotion.animatesInteraction
+        navigation.pop()
+    }
+
+    func showDetails(_ service: ServiceRecord, from surface: MonitorSurface) {
+        presentationSurface = surface
+        push(.details(service.id))
+    }
+
+    /// A server whose primary port answers HTTP as far as the app knows: no database, no port whose share check got
+    /// something else back.
+    func speaksHTTP(_ service: ServiceRecord) -> Bool {
+        guard service.kind == .server, let endpoint = service.primaryEndpoint else { return false }
+        return !answersNoHTTP(service, port: endpoint.port)
+    }
+
+    /// Only an app comes forward: no terminal can attach to a running command-line session.
+    func canActivate(_ service: ServiceRecord) -> Bool { service.isDesktopApplication }
+
+    /// What a click on the row does. The demo's processes don't exist, so its rows show details.
+    func primaryAction(for service: ServiceRecord) -> ServicePrimaryAction {
+        guard !demoMode else { return .showDetails }
+        return ServicePrimaryAction.resolve(
+            for: service, speaksHTTP: speaksHTTP(service), canActivate: canActivate(service))
+    }
+
+    func performPrimaryAction(_ service: ServiceRecord, from surface: MonitorSurface) {
+        // An error or the details page appears where the row was clicked.
+        presentationSurface = surface
+        switch primaryAction(for: service) {
+        case .openURL(let url):
+            if !NSWorkspace.shared.open(url) { report("The address couldn't be opened.", as: .open) }
+        case .activate: activate(service)
+        case .showDetails: showDetails(service, from: surface)
+        }
     }
 
     func startMonitoring() {
@@ -279,6 +291,8 @@ final class MonitorModel {
         }
     }
 
+    func isShowing(_ surface: MonitorSurface) -> Bool { visibleSurfaces.contains(surface) }
+
     var scanActivity: ScanActivity {
         if systemIdle { return .idle }
         return visibleSurfaces.isEmpty ? .background : .visible
@@ -292,7 +306,10 @@ final class MonitorModel {
     func setSurface(_ surface: MonitorSurface, visible: Bool) {
         let previous = scanActivity
         let wasVisible = !visibleSurfaces.isEmpty
-        if visible { visibleSurfaces.insert(surface) } else { visibleSurfaces.remove(surface) }
+        var next = visibleSurfaces
+        if visible { next.insert(surface) } else { next.remove(surface) }
+        // Assigned only on change: the surfaces report often, and an assignment redraws the output page.
+        if next != visibleSurfaces { visibleSurfaces = next }
         if ScanCadence.shouldScanNow(
             wasVisible: wasVisible, isVisible: !visibleSurfaces.isEmpty, hasScanned: hasScanned,
             snapshotAge: .seconds(Date().timeIntervalSince(snapshot.scannedAt)),
@@ -369,9 +386,7 @@ final class MonitorModel {
 
     private func scanOnce() async {
         guard !demoMode else { return }
-        isScanning = true
         let generation = scanGeneration
-        defer { isScanning = false }
         do {
             #if DEBUG
                 // Manual check of the inline failure line: scans fail while this file exists.
@@ -388,13 +403,13 @@ final class MonitorModel {
             let nextIDs = Set(next.services.map(\.id))
             if hasScanned {
                 for service in next.services where !previousIDs.contains(service.id) && service.kind != .listener {
-                    record("\(service.title) erkannt", detail: service.process.projectName, symbol: "plus.circle")
+                    record("\(service.title) detected", detail: service.process.projectName, symbol: "plus.circle")
                 }
                 // A failed listener query cannot prove that a service exited.
                 if next.warning == nil {
                     for service in services where !nextIDs.contains(service.id) && service.kind != .listener {
                         record(
-                            "\(service.title) nicht mehr aktiv", detail: service.process.projectName,
+                            "\(service.title) is no longer active", detail: service.process.projectName,
                             symbol: "minus.circle")
                     }
                 }
@@ -412,36 +427,19 @@ final class MonitorModel {
                     histories[service.id] = Array(histories[service.id, default: []].suffix(40))
                 }
             }
-            if !showingDetails, selectedID.map({ !nextIDs.contains($0) }) ?? true {
-                selectedID = visibleUniverse.first?.id
-            }
         } catch {
             PortsLog.scan.error("Scan failed: \(error.localizedDescription, privacy: .private)")
             if generation == scanGeneration && !demoMode { detectionIssue = error.localizedDescription }
         }
         if !launches.isEmpty { await reloadLaunches() }
-        if let logJobID { logs = await launcher.output(for: logJobID) }
-    }
-
-    func navigate(_ target: NavigationSection, mode: DisplayMode = .list) {
-        navigationUsesMotion = PanelMotion.animatesInteraction
-        section = target
-        search = ""
-        showingDetails = false
-        showingLogs = false
-        displayMode = mode
-    }
-
-    func inspect(_ service: ServiceRecord) {
-        selectedID = service.id
-        showingDetails = true
     }
 
     func presentOnboarding() {
         guard !hasPanelDialog else { return }
         presentationSurface = .window
         if onboardingSession == nil { onboardingSession = UUID() }
-        revealWindow?()
+        // The introduction always runs in the window.
+        PanelWindowCoordinator.shared.showWindow()
     }
 
     func dismissOnboarding() {
@@ -464,7 +462,7 @@ final class MonitorModel {
         preferences = next
         if !persist && !persistenceAvailable { panelError = nil }
         onboardingSession = nil
-        navigate(.servers)
+        navigation.select(.servers)
         if let demo, demo != demoMode { toggleDemo() }
     }
 
@@ -489,15 +487,11 @@ final class MonitorModel {
     private func applyDemoToggle() {
         demoMode.toggle()
         scanGeneration += 1
-        search = ""
         histories = [:]
-        selectedID = nil
-        showingDetails = false
-        showingLogs = false
+        navigation.select(.servers)
         detectionIssue = nil
         if demoMode {
             snapshot = DemoData.snapshot
-            selectedID = services.first?.id
             hasScanned = true
         } else {
             snapshot = ScanSnapshot(services: [], processCount: 0)
@@ -507,13 +501,46 @@ final class MonitorModel {
     }
 
     func savePreferences() {
-        guard persistenceAvailable else {
-            report(
-                "Saving is turned off so the unreadable settings file is kept. The README has details.",
-                as: .preferencesSave)
-            return
-        }
+        guard persistenceAvailable else { return reportSavingDisabled() }
         do { try writePreferences(preferences) } catch { report(error, as: .preferencesSave) }
+    }
+
+    /// Saves first and applies the change only once it is on disk, so the panel never shows a change a relaunch would
+    /// lose. A failure is reported.
+    @discardableResult func commitPreferences(_ change: (inout AppPreferences) -> Void) -> Bool {
+        guard persistenceAvailable else {
+            reportSavingDisabled()
+            return false
+        }
+        var next = preferences
+        change(&next)
+        do { try writePreferences(next) } catch {
+            report(error, as: .preferencesSave)
+            return false
+        }
+        preferences = next
+        return true
+    }
+
+    /// Like `commitPreferences(_:)` for what the app remembers on its own, such as the last folder: a failure is only
+    /// logged, because nothing the user did was lost.
+    @discardableResult func persistQuietly(_ change: (inout AppPreferences) -> Void) -> Bool {
+        guard persistenceAvailable else {
+            PortsLog.persistence.info("Skipped a background save: saving is turned off")
+            return false
+        }
+        var next = preferences
+        change(&next)
+        // writePreferences logs the failure.
+        guard (try? writePreferences(next)) != nil else { return false }
+        preferences = next
+        return true
+    }
+
+    private func reportSavingDisabled() {
+        report(
+            "Saving is turned off so the unreadable settings file is kept. The README has details.",
+            as: .preferencesSave)
     }
 
     /// Logs a failed save; callers decide whether and how to present it.
@@ -524,18 +551,23 @@ final class MonitorModel {
         }
     }
 
+    /// Whether the app may pause or stop the process at all. Rows, menus and details hide what it rules out.
+    func isControllable(_ service: ServiceRecord) -> Bool {
+        !demoMode && controller.isControllable(service.process)
+    }
+
+    /// Controllable and not waiting for an earlier pause, resume or stop.
     func canControl(_ service: ServiceRecord) -> Bool {
-        !demoMode && !busyIDs.contains(service.id) && controller.isControllable(service.process)
+        isControllable(service) && !busyIDs.contains(service.id)
     }
 
     func request(_ action: ProcessAction, service: ServiceRecord, from surface: MonitorSurface = .window) {
         guard canControl(service), !hasPanelDialog else { return }
+        presentationSurface = surface
         if action == .terminate {
-            presentationSurface = PanelWindowCoordinator.shared.dialogSurface(from: surface)
             dialogUsesMotion = PanelMotion.isPointerEvent
             pendingAction = PendingAction(service: service, action: action)
         } else {
-            presentationSurface = surface
             perform(action, service: service)
         }
     }
@@ -552,14 +584,14 @@ final class MonitorModel {
                 let message: LocalizedStringResource
                 switch action {
                 case .pause:
-                    entry = "\(service.title): pausiert"
-                    message = "\(service.title) · pausiert"
+                    entry = "\(service.title): paused"
+                    message = "\(service.title) · paused"
                 case .resume:
-                    entry = "\(service.title): fortgesetzt"
-                    message = "\(service.title) · fortgesetzt"
+                    entry = "\(service.title): resumed"
+                    message = "\(service.title) · resumed"
                 case .terminate:
-                    entry = "\(service.title): Stop angefragt"
-                    message = "\(service.title) · Stop angefragt"
+                    entry = "\(service.title): stop requested"
+                    message = "\(service.title) · stop requested"
                 }
                 record(
                     entry, detail: "PID \(service.id.pid)",
@@ -610,15 +642,6 @@ final class MonitorModel {
         if let directory = service.projectDirectory {
             openDirectory(directory, terminal: true)
         }
-    }
-
-    func favorite(_ key: String) {
-        if preferences.favoriteProjects.contains(key) {
-            preferences.favoriteProjects.remove(key)
-        } else {
-            preferences.favoriteProjects.insert(key)
-        }
-        savePreferences()
     }
 
     func notify(_ text: LocalizedStringResource, animate: Bool = true) {

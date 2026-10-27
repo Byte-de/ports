@@ -1,18 +1,21 @@
 import SwiftUI
 
+/// Pushed from the header's clock over any tab.
 struct ActivityView: View {
     @Bindable var model: MonitorModel
+    /// The surface's own search.
+    let search: String
     private var entries: [ActivityEntry] {
         model.activity.filter {
-            model.search.isEmpty || $0.title.localizedCaseInsensitiveContains(model.search)
-                || $0.detail.localizedCaseInsensitiveContains(model.search)
+            search.isEmpty || $0.title.localizedCaseInsensitiveContains(search)
+                || $0.detail.localizedCaseInsensitiveContains(search)
         }
     }
     var body: some View {
         if entries.isEmpty {
             EmptyState(
-                symbol: "clock.arrow.circlepath", title: "Noch keine Ereignisse",
-                detail: "Starts, beendete Prozesse und deine Aktionen erscheinen hier.")
+                symbol: "clock.arrow.circlepath", title: "No activity yet",
+                detail: "Detected and ended services and your actions appear here.")
         } else {
             ScrollView {
                 LazyVStack(spacing: 0) {

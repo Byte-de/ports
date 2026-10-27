@@ -1,26 +1,70 @@
 import PortsCore
+import PortsFeatures
 import SwiftUI
 
+/// The content of MainPanelController's window, which sizes itself to it.
 struct MonitorWindow: View {
     @Bindable var model: MonitorModel
-    @Environment(\.openWindow) private var openWindow
     var body: some View {
         Group {
             if let session = model.onboardingSession {
                 OnboardingView(model: model).id(session)
             } else {
-                MonitorPanel(model: model, surface: .window)
+                MonitorPanel(
+                    model: model, surface: .window,
+                    surfaceControl: .close { PanelWindowCoordinator.shared.closeWindow() })
             }
         }
         .padding(12)
-        .background(FloatingWindowStyle())
-        .background(PanelWindowRegistration(surface: .window, model: model))
         .fixedSize()
         .ignoresSafeArea(.container, edges: .top)
-        .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
         .onChange(of: model.onboardingSession) { _, _ in
             PanelWindowCoordinator.shared.configureNotch(model: model)
         }
+    }
+}
+
+extension PanelTab {
+    var title: LocalizedStringResource {
+        switch self {
+        case .servers: "Servers"
+        case .agents: "Agents"
+        case .actions: "Actions"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .servers: "server.rack"
+        case .agents: "sparkles"
+        case .actions: "bolt"
+        }
+    }
+
+    /// Names the tab's shortcut, which PanelShortcuts binds to the same key.
+    var help: LocalizedStringResource {
+        let key = String(keyEquivalent)
+        return switch self {
+        case .servers: "Servers (⌘\(key))"
+        case .agents: "Agents (⌘\(key))"
+        case .actions: "Actions (⌘\(key))"
+        }
+    }
+}
+
+/// One trailing control per surface.
+struct PanelSurfaceControl {
+    let symbol: String
+    let help: LocalizedStringResource
+    let action: () -> Void
+
+    /// Hides the window; the status item brings it back at the same position.
+    static func close(_ action: @escaping () -> Void) -> Self {
+        Self(symbol: "xmark", help: "Close window (⌘W)", action: action)
+    }
+
+    static func collapse(_ action: @escaping () -> Void) -> Self {
+        Self(symbol: "chevron.up", help: "Collapse panel", action: action)
     }
 }
 
@@ -28,35 +72,41 @@ struct MonitorWindow: View {
 struct MonitorPanel: View {
     @Bindable var model: MonitorModel
     let surface: MonitorSurface
-    var collapse: (() -> Void)?
+    var surfaceControl: PanelSurfaceControl?
     var drawsSurface = true
     var contentIsRevealed = true
     var revealAnimation: Animation?
-    @State private var showingSearch = false
+    /// Each surface searches on its own: typing in one panel never filters another.
+    @State private var search = ""
+    /// The page the field was opened on, nil while it is closed. Another page never sees the text.
+    @State private var searchScope: SearchContext?
     @FocusState private var searchFocused: Bool
     private var accessibility = PanelAccessibility()
 
     init(
-        model: MonitorModel, surface: MonitorSurface, collapse: (() -> Void)? = nil,
+        model: MonitorModel, surface: MonitorSurface, surfaceControl: PanelSurfaceControl? = nil,
         drawsSurface: Bool = true, contentIsRevealed: Bool = true, revealAnimation: Animation? = nil
     ) {
         self.model = model
         self.surface = surface
-        self.collapse = collapse
+        self.surfaceControl = surfaceControl
         self.drawsSurface = drawsSurface
         self.contentIsRevealed = contentIsRevealed
         self.revealAnimation = revealAnimation
     }
 
     private enum DialogIdentity: Hashable {
-        case panel, launch, share
+        case panel, share
+        case launch(UUID)
+        case deleteAction(UUID)
         case process(UUID)
         case job(UUID)
         case forceStop(UUID)
     }
     private var dialogIdentity: DialogIdentity {
         guard model.presentationSurface == surface else { return .panel }
-        if model.showLaunchForm { return .launch }
+        if let request = model.launchForm { return .launch(request.id) }
+        if let configuration = model.pendingActionDeletion { return .deleteAction(configuration.id) }
         if model.pendingShare != nil { return .share }
         if let pending = model.pendingAction { return .process(pending.id) }
         if let job = model.pendingJobStop { return .job(job.id) }
@@ -64,16 +114,34 @@ struct MonitorPanel: View {
         return .panel
     }
 
-    private var isServiceSection: Bool { [.overview, .agents, .servers].contains(model.section) }
-    private var page: PanelPage { PanelPage(section: model.section, mode: model.displayMode) }
-    private var isDrilledIn: Bool { model.showingDetails || (model.section == .actions && model.showingLogs) }
+    private var navigation: PanelNavigation { model.navigation }
+    private var isServicesRoot: Bool { navigation.isAtRoot && navigation.tab.serviceFilter != nil }
+    /// The Servers and Agents roots and the activity page can be searched.
+    private var isSearchable: Bool { isServicesRoot || navigation.top == .activity }
+    private var movesHere: Bool { model.navigationUsesMotion && model.presentationSurface == surface }
+
+    /// What search filters: the tab's services, or the activity page while it is open over the tab.
+    private struct SearchContext: Equatable {
+        let tab: PanelTab
+        let activity: Bool
+    }
+    private var searchContext: SearchContext {
+        SearchContext(tab: navigation.tab, activity: navigation.stack.contains(.activity))
+    }
+    /// Pushing details or settings keeps the text for the page underneath; the field returns with it.
+    private var showingSearch: Bool { searchScope == searchContext }
+    private var query: String { showingSearch ? search : "" }
+
     private var title: Text {
-        if model.showingDetails {
-            if let selected = model.selected { return Text(verbatim: selected.title) }
-            return Text("Prozess beendet")
+        switch navigation.top {
+        case nil: return Text(navigation.tab.title)
+        case .settings: return Text("Settings")
+        case .activity: return Text("Activity")
+        case .output: return Text("Output")
+        case .details(let id):
+            guard let service = model.service(for: id) else { return Text("Service ended") }
+            return Text(verbatim: service.title)
         }
-        if model.section == .actions && model.showingLogs { return Text("Ausgabe") }
-        return model.displayMode == .board && isServiceSection ? Text("Board") : Text(model.section.title)
     }
     /// A failed scan outranks the partial-result warning of the last good one.
     private var scanWarning: Text? {
@@ -81,20 +149,25 @@ struct MonitorPanel: View {
         if let issue = model.detectionIssue { return Text("Detection failed: \(issue)") }
         return model.snapshot.warning.map { Text(verbatim: $0) }
     }
-    private var contentHeight: CGFloat {
-        if isDrilledIn { return 316 }
-        if model.section == .settings { return 398 }
-        if !isServiceSection { return 284 }
-        if model.displayMode == .board { return 284 }
-        let rowsHeight = model.filteredServices.reduce(CGFloat(8)) {
-            $0 + DS.rowHeight + CGFloat(model.visibleTunnels(for: $1).count) * 48
+    private func contentHeight(_ visible: [ServiceRecord]?) -> CGFloat {
+        switch navigation.top {
+        case nil: rootHeight(visible)
+        case .settings: 398
+        case .activity: 284
+        case .details, .output: 316
         }
-        return min(320, max(168, rowsHeight))
+    }
+    /// The tab underneath keeps this height while a page is pushed, so its list doesn't reflow.
+    private func rootHeight(_ visible: [ServiceRecord]?) -> CGFloat {
+        guard let visible else { return 284 }
+        return ServicesPage.height(for: visible, model: model)
     }
 
     var body: some View {
+        // Filtered once per update, so the list and the height it sets agree.
+        let visible = navigation.tab.serviceFilter.map { model.visibleServices($0, search: query) }
         ZStack {
-            dialogContent.id(dialogIdentity)
+            dialogContent(visible).id(dialogIdentity)
                 .transition(accessibility.reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.98)))
         }
         .animation(
@@ -114,16 +187,24 @@ struct MonitorPanel: View {
             }
         }
         .background {
-            Button("") { revealSearch() }.keyboardShortcut("f").hidden()
-                .disabled(model.hasPanelDialog)
+            PanelShortcuts(model: model, surface: surface, revealSearch: { revealSearch() }, push: { push($0) })
         }
-        .onChange(of: model.section) { _, _ in showingSearch = false }
+        // Search closes when what it filters changes, when demo and live data swap, and when the notch collapses.
+        .onChange(of: searchContext) { _, context in
+            if searchScope != context { closeSearch() }
+        }
+        .onChange(of: model.demoMode) { _, _ in closeSearch() }
+        .onChange(of: contentIsRevealed) { _, revealed in
+            if !revealed { closeSearch() }
+        }
         .task { model.startMonitoring() }
     }
 
-    @ViewBuilder private var dialogContent: some View {
-        if model.presentationSurface == surface, model.showLaunchForm {
-            LaunchForm(model: model) { model.dismissPanelDialog() }
+    @ViewBuilder private func dialogContent(_ visible: [ServiceRecord]?) -> some View {
+        if model.presentationSurface == surface, let request = model.launchForm {
+            LaunchForm(model: model, request: request)
+        } else if model.presentationSurface == surface, let configuration = model.pendingActionDeletion {
+            ActionDeleteConfirmation(model: model, configuration: configuration)
         } else if model.presentationSurface == surface, let target = model.pendingShare {
             PublicShareConfirmation(model: model, target: target)
         } else if model.presentationSurface == surface, let pending = model.pendingAction {
@@ -133,17 +214,18 @@ struct MonitorPanel: View {
         } else if model.presentationSurface == surface, let pending = model.pendingForceStop {
             ForceStopConfirmation(model: model, pending: pending)
         } else {
-            panelContent
+            panelContent(visible)
         }
     }
 
-    private var panelContent: some View {
+    private func panelContent(_ visible: [ServiceRecord]?) -> some View {
         VStack(spacing: DS.navigationSpacing) {
             VStack(spacing: 0) {
                 header
                 if model.demoMode { demoNotice }
-                if showingSearch && !isDrilledIn { searchField }
-                if let warning = scanWarning {
+                if showingSearch && isSearchable { searchField }
+                // Scan problems concern the lists, so other pages stay calm.
+                if isServicesRoot, let warning = scanWarning {
                     Label {
                         warning
                     } icon: {
@@ -153,12 +235,9 @@ struct MonitorPanel: View {
                     .padding(.horizontal, 16).padding(.bottom, 8)
                 }
                 Rectangle().fill(DS.line).frame(height: 0.5).padding(.horizontal, 16)
-                content.modifier(AnimatedPanelHeight(height: contentHeight))
-                    .animation(
-                        model.navigationUsesMotion && model.presentationSurface == surface
-                            && !accessibility.reduceMotion
-                            ? PanelMotion.resize : nil,
-                        value: page)
+                // Only navigation resizes with motion; scans and typing change the height at once.
+                content(visible).modifier(AnimatedPanelHeight(height: contentHeight(visible)))
+                    .animation(movesHere && !accessibility.reduceMotion ? PanelMotion.resize : nil, value: navigation)
                 Spacer().frame(height: 15)
             }
             .blur(radius: contentIsRevealed || accessibility.reduceMotion ? 0 : 2)
@@ -182,143 +261,76 @@ struct MonitorPanel: View {
                         : nil,
                     value: model.toast != nil)
             }
-            navigation.zIndex(1)
+            tabBar.zIndex(1)
         }
     }
 
     private var header: some View {
         HStack(spacing: 0) {
-            if isDrilledIn || model.section == .settings || model.section == .activity {
-                IconButton(symbol: "chevron.left", help: "Zurück") {
-                    if model.showingDetails {
-                        model.showingDetails = false
-                    } else if model.showingLogs {
-                        model.showingLogs = false
-                    } else {
-                        model.navigate(.servers)
-                    }
-                }.padding(.leading, -9)
+            if !navigation.isAtRoot {
+                IconButton(symbol: "chevron.left", help: "Back (⌘[)") { model.goBack() }.padding(.leading, -9)
             }
             title.font(.system(size: 14, weight: .medium)).lineLimit(1)
             if !model.isMonitoring && !model.demoMode {
-                Image(systemName: "pause.circle").font(.system(size: 11)).foregroundStyle(DS.orange)
-                    .padding(.leading, 6).help("Automatische Erkennung pausiert")
+                PausedBadge { model.setMonitoring(true) }.padding(.leading, 8)
             }
             Spacer(minLength: 6)
-            if !isDrilledIn && isServiceSection {
-                IconButton(symbol: "arrow.clockwise", help: "Aktualisieren (⌘R)") { Task { await model.refresh() } }
-                    .disabled(model.isScanning || model.demoMode)
-                let counts = model.counts
-                HStack(spacing: 12) {
-                    Label {
-                        Text(counts.agents, format: .number)
-                    } icon: {
-                        Image(systemName: "sparkles")
-                    }
-                    Label {
-                        Text(counts.servers, format: .number)
-                    } icon: {
-                        Image(systemName: "server.rack")
-                    }
-                }
-                .font(.system(size: 11, design: .monospaced)).foregroundStyle(DS.muted)
-                .monospacedDigit().help("\(counts.agents) Agenten · \(counts.servers) Dev-Server")
-                .padding(.horizontal, 8)
-                Spacer(minLength: 0)
-            }
-            if model.section == .actions && !model.showingLogs {
-                IconButton(symbol: "plus", help: "Dienst starten (⌘N)") { presentLaunch() }.disabled(model.demoMode)
-            } else if !isDrilledIn && model.section != .settings {
-                IconButton(symbol: "magnifyingglass", help: "Suchen (⌘F)", selected: showingSearch) {
-                    if showingSearch {
-                        showingSearch = false
-                        model.search = ""
-                    } else {
-                        revealSearch()
-                    }
+            if navigation.isAtRoot && navigation.tab == .actions {
+                IconButton(symbol: "plus", help: "New Action (⌘N)") { presentLaunch() }.disabled(model.demoMode)
+            } else if isSearchable {
+                IconButton(symbol: "magnifyingglass", help: "Search (⌘F)", selected: showingSearch) {
+                    if showingSearch { closeSearch() } else { revealSearch() }
                 }
             }
-            if let collapse {
-                IconButton(symbol: "chevron.up", help: "Panel einklappen", action: collapse)
+            IconButton(symbol: "clock.arrow.circlepath", help: "Activity", selected: navigation.top == .activity) {
+                push(.activity)
             }
-            if model.section != .settings {
-                IconButton(symbol: "gearshape", help: "Einstellungen (⌘,)") {
-                    model.presentationSurface = surface
-                    model.navigate(.settings)
-                }
+            IconButton(symbol: "gearshape", help: "Settings (⌘,)", selected: navigation.top == .settings) {
+                push(.settings)
+            }
+            if let surfaceControl {
+                IconButton(symbol: surfaceControl.symbol, help: surfaceControl.help, action: surfaceControl.action)
             }
         }.padding(.horizontal, 16).frame(height: 54)
     }
 
-    @ViewBuilder private var content: some View {
-        if model.showingDetails {
-            InspectorView(model: model, surface: surface)
-        } else {
+    /// Pages are pushed over the tab, which stays mounted underneath with its scroll position.
+    private func content(_ visible: [ServiceRecord]?) -> some View {
+        PushStage(destination: navigation.top, animated: movesHere) {
             DirectionalStage(
-                selection: page,
-                animated: model.navigationUsesMotion && model.presentationSurface == surface,
-                order: { $0.rawValue }, distance: 12, duration: 0.15,
-                content: { page in
-                    switch page {
-                    case .overview, .agents, .servers, .board: serviceList(page)
-                    case .projects: ProjectsView(model: model, services: model.filteredServices(in: .projects))
-                    case .actions: ActionsView(model: model, surface: surface)
-                    case .activity: ActivityView(model: model)
-                    case .settings: PreferencesView(model: model)
-                    }
-                }
-            )
-        }
-    }
-
-    @ViewBuilder private func serviceList(_ page: PanelPage) -> some View {
-        let services = model.filteredServices(in: page.section)
-        if !model.hasScanned {
-            VStack(spacing: 12) {
-                ProgressView().controlSize(.small)
-                Text("Prozesse werden erfasst…").font(.system(size: 11)).foregroundStyle(DS.muted)
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if services.isEmpty {
-            EmptyState(
-                symbol: model.search.isEmpty ? page.section.symbol : "magnifyingglass",
-                title: model.search.isEmpty
-                    ? (page == .agents ? "Keine aktiven Agenten" : "Keine aktiven Dienste") : "Keine Treffer",
-                detail: model.search.isEmpty
-                    ? "Laufende Agenten und Dev-Server erscheinen automatisch hier."
-                    : "Suche nach Projekt, Agent, PID oder Port.")
-        } else if page == .board {
-            ServiceBoard(model: model, services: services)
-        } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(services) { service in
-                        ServiceRow(model: model, service: service, surface: surface)
-                        if service.id != services.last?.id {
-                            Rectangle().fill(DS.line).frame(height: 0.5)
-                        }
-                    }
-                }.padding(.horizontal, 16)
-            }.scrollIndicators(.hidden)
-        }
-    }
-
-    private var navigation: some View {
-        HStack(spacing: 0) {
-            ForEach([NavigationSection.servers, .projects, .actions, .overview, .agents]) { section in
-                IconButton(
-                    symbol: section.symbol, help: section.title,
-                    selected: model.section == section && model.displayMode == .list && !model.showingDetails,
-                    immediateHelp: true, systemForeground: true
-                ) {
-                    model.navigate(section)
+                selection: navigation.tab, animated: movesHere, order: { $0.rawValue }, distance: 12, duration: 0.15
+            ) { tab in
+                if let filter = tab.serviceFilter {
+                    // Search belongs to the tab in front; a departing tab fades out unfiltered.
+                    let front = tab == navigation.tab
+                    ServicesPage(
+                        model: model, surface: surface, filter: filter,
+                        services: front ? visible ?? [] : model.visibleServices(filter, search: ""),
+                        search: front ? query : "")
+                } else {
+                    ActionsView(model: model, surface: surface)
                 }
             }
-            IconButton(
-                symbol: "rectangle.split.2x1", help: "Board",
-                selected: model.displayMode == .board && isServiceSection && !model.showingDetails,
-                immediateHelp: true, systemForeground: true
-            ) {
-                model.navigate(.overview, mode: .board)
+            .frame(height: rootHeight(visible), alignment: .top)
+        } pushed: { destination in
+            switch destination {
+            case .settings: PreferencesView(model: model)
+            case .activity: ActivityView(model: model, search: query)
+            case .details(let id): InspectorView(model: model, serviceID: id, surface: surface)
+            case .output(let id): LogPane(model: model, jobID: id, surface: surface)
+            }
+        }
+    }
+
+    /// The tab stays selected while a page is pushed over it; selecting it again pops to its root.
+    private var tabBar: some View {
+        HStack(spacing: 0) {
+            ForEach(PanelTab.allCases, id: \.self) { tab in
+                NavigationTabButton(
+                    title: tab.title, symbol: tab.symbol, help: tab.help, selected: navigation.tab == tab
+                ) {
+                    model.select(tab)
+                }
             }
         }
         // Keep material separate from content fades. The clipped, nonactivating
@@ -338,18 +350,17 @@ struct MonitorPanel: View {
     }
 
     private var searchField: some View {
-        HStack(spacing: 8) {
+        let activity = navigation.top == .activity
+        let prompt: LocalizedStringResource = activity ? "Search activity" : "Project, name, PID or port"
+        let label: LocalizedStringResource = activity ? "Search activity" : "Search by project, name, PID or port"
+        return HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(DS.muted)
-            TextField("Projekt, Agent, PID oder Port", text: $model.search)
+            TextField(prompt, text: $search)
                 .textFieldStyle(.plain).focused($searchFocused)
-                .accessibilityLabel("Nach Projekt, Agent, PID oder Port suchen")
-                .onExitCommand {
-                    model.search = ""
-                    showingSearch = false
-                }
+                .accessibilityLabel(Text(label))
+                .onExitCommand { closeSearch() }
             Button {
-                model.search = ""
-                showingSearch = false
+                closeSearch()
             } label: {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(DS.muted)
             }.buttonStyle(.plain).help("Suche schließen")
@@ -358,14 +369,88 @@ struct MonitorPanel: View {
             .padding(.horizontal, 16).padding(.bottom, 10)
     }
 
+    /// Searches the page in front when it can be searched, otherwise the services tab underneath or Servers.
     private func revealSearch() {
-        // Settings and the Actions tab have no search.
-        if model.section == .settings || model.section == .actions { model.navigate(.overview) }
-        model.showingDetails = false
-        showingSearch = true
+        if !isSearchable { model.select(navigation.tab.serviceFilter == nil ? .servers : navigation.tab) }
+        if !showingSearch {
+            search = ""
+            searchScope = searchContext
+        }
         searchFocused = true
+    }
+
+    /// A closed field never leaves text behind that filters invisibly.
+    private func closeSearch() {
+        searchScope = nil
+        search = ""
+    }
+
+    private func push(_ destination: PanelDestination) {
+        model.presentationSurface = surface
+        model.push(destination)
     }
     private func presentLaunch() {
         model.presentLaunch(from: surface)
+    }
+}
+
+/// The panel's shortcuts act on the surface whose window is key, so ⌘1 switches tabs in the notch without opening the
+/// window. They never go into the app's menu commands as well: a key bound twice fires in a different place depending on
+/// which window is key. Hidden buttons still take their shortcuts; all of them are inert while a dialog is open.
+private struct PanelShortcuts: View {
+    let model: MonitorModel
+    let surface: MonitorSurface
+    let revealSearch: () -> Void
+    let push: (PanelDestination) -> Void
+
+    var body: some View {
+        let navigation = model.navigation
+        Group {
+            Group {
+                ForEach(PanelTab.allCases, id: \.self) { tab in
+                    shortcut(KeyEquivalent(tab.keyEquivalent)) { model.select(tab) }
+                }
+                shortcut("f", action: revealSearch)
+                shortcut("[") { model.goBack() }.disabled(navigation.isAtRoot)
+                shortcut(",") { push(.settings) }.disabled(navigation.top == .settings)
+                shortcut("n") { model.presentLaunch(from: surface) }.disabled(model.demoMode)
+                shortcut("r") { Task { await model.refresh() } }.disabled(model.demoMode)
+            }
+            .disabled(model.hasPanelDialog)
+            // Like the close button: the window hides, the app keeps running and the status item brings it back. It
+            // stays enabled under a dialog and does nothing there, because a disabled ⌘W would fall through to
+            // File > Close and hide the window with the dialog still open.
+            if surface == .window {
+                shortcut("w") { if !model.hasPanelDialog { PanelWindowCoordinator.shared.closeWindow() } }
+            }
+        }
+        .hidden()
+    }
+
+    private func shortcut(_ key: KeyEquivalent, action: @escaping () -> Void) -> some View {
+        Button("", action: action).keyboardShortcut(key)
+    }
+}
+
+/// Stays in the header on every page while detection is paused, so a pause is never forgotten. A click resumes.
+private struct PausedBadge: View {
+    let resume: () -> Void
+
+    var body: some View {
+        Button(action: resume) {
+            HStack(spacing: 4) {
+                Image(systemName: "pause.circle.fill")
+                Text(
+                    LocalizedStringResource(
+                        "detection.paused", defaultValue: "Paused", comment: "Header badge while detection is paused"))
+            }
+            .font(.system(size: 10, weight: .medium)).foregroundStyle(DS.orange)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(DS.orange.opacity(0.14), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain).fixedSize()
+        .help(Text("Resume detection"))
+        .accessibilityLabel(Text("Detection paused"))
     }
 }

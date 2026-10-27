@@ -16,14 +16,17 @@ container internals are outside the supported release scope.
 ## Features
 
 - Discover local servers, ports and AI agents automatically.
-- Group services by project folder and save favourites.
-- Save launch commands, inspect their output and restart managed services.
+- List servers and agents in their own tabs, services of one project folder
+  next to each other.
+- Save launch commands, edit them, follow their output live and restart
+  managed services.
 - Pause, resume or stop processes with identity and ownership checks.
-- Use a compact window, menu bar panel or optional notch panel.
+- Open one panel from the menu bar: a floating window that remembers its
+  position, or optionally the notch panel.
 - Share an HTTP server through a temporary Cloudflare Tunnel; copy its URL and
   stop sharing directly from the service row.
 - Onboarding, keyboard access, Reduce Motion and Reduce Transparency support.
-- Manually check for new releases from the app menu or Settings.
+- Manually check for new releases in Settings.
 
 ## Install
 
