@@ -152,43 +152,7 @@ struct InspectorView: View {
                         }
                     }
                     if !service.ports.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("ADRESSEN").overline()
-                            ForEach(service.ports) { port in
-                                HStack {
-                                    Group {
-                                        Text(verbatim: ":\(port.port)")
-                                        Text(verbatim: port.addresses.joined(separator: " · "))
-                                            .foregroundStyle(DS.muted).lineLimit(1).truncationMode(.middle)
-                                    }.font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
-                                    Spacer()
-                                    IconButton(symbol: "arrow.up.forward.square", help: "Adresse öffnen") {
-                                        model.openEndpoint(port.primary)
-                                    }
-                                    .disabled(model.demoMode)
-                                    IconButton(symbol: "doc.on.doc", help: "Adresse kopieren") {
-                                        model.copy(
-                                            port.primary.url?.absoluteString ?? "\(port.primary.address):\(port.port)")
-                                    }
-                                    if let target = model.tunnelTarget(service, endpoint: port.primary) {
-                                        ShareServerButton(model: model, target: target, surface: surface)
-                                    }
-                                }
-                            }
-                            if service.ports.contains(where: \.isNetworkExposed) {
-                                Label("Auch im Netzwerk erreichbar", systemImage: "network")
-                                    .font(.system(size: 10)).foregroundStyle(DS.orange)
-                            }
-                            if service.kind == .server {
-                                Text(
-                                    "Teilen erstellt einen öffentlichen Link. Jeder mit dem Link kann den Server aufrufen."
-                                )
-                                .font(.system(size: 10)).foregroundStyle(DS.muted).lineSpacing(3)
-                            }
-                            ForEach(model.visibleTunnels(for: service)) { record in
-                                TunnelStatusRow(model: model, record: record)
-                            }
-                        }
+                        ServiceAddressSection(model: model, service: service, surface: surface)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {

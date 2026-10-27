@@ -120,6 +120,14 @@ public struct ServiceClassifier: Sendable {
         return (process.name, false)
     }
 
+    /// Database and cache daemons never answer HTTP on their main port; probing them only writes errors into their
+    /// logs.
+    public static let nonHTTPEntryNames: Set<String> = ["postgres", "redis-server", "mysqld", "mongod", "memcached"]
+
+    public func isKnownNonHTTP(_ process: ProcessRecord) -> Bool {
+        !Self.nonHTTPEntryNames.isDisjoint(with: entryNames(process, script: entryScript(process)))
+    }
+
     private func entryNames(_ process: ProcessRecord, script: String) -> Set<String> {
         var names: Set<String> = [Self.fileName(process.executable).lowercased()]
         if !script.isEmpty {

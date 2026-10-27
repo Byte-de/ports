@@ -67,6 +67,8 @@ The scheduled check reports newer vendor releases; it never silently replaces a
 binary. Review the vendor release notes, obtain checksums from the official release,
 refresh `Resources/ThirdParty`, run all tests and a disposable end-to-end preview,
 then include the update in the next app release. No runtime binary auto-update.
+Pin each darwin `.tgz` asset's GitHub digest. The release notes list the SHA-256 of
+the extracted `cloudflared` executable instead, so compare that after extraction.
 
 ## Rollback
 

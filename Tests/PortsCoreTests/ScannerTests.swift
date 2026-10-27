@@ -75,6 +75,26 @@ struct ScannerTests {
         #expect(services.map(\.id.pid) == [43, 42, 41])
     }
 
+    @Test func marksDatabasesAsNonHTTPServers() async throws {
+        let records = [
+            process(
+                "/opt/homebrew/opt/postgresql@17/bin/postgres", arguments: ["postgres", "-D", "/tmp/data"], pid: 41),
+            process("/opt/homebrew/bin/redis-server", arguments: ["redis-server *:6379"], pid: 42),
+            process("/usr/local/bin/node", arguments: ["node", "/app/node_modules/vite/bin/vite.js"], pid: 43),
+        ]
+        let scanner = ProcessScanner(
+            inspector: SnapshotInspector(initial: records, current: records),
+            listenerDiscovery: FixtureListeners(endpoints: [
+                .init(pid: 41, address: "127.0.0.1", port: 5432), .init(pid: 42, address: "*", port: 6379),
+                .init(pid: 43, address: "127.0.0.1", port: 5173),
+            ]))
+        let services = try await scanner.scan().services
+        let nonHTTP = services.filter(\.isKnownNonHTTP)
+        #expect(Set(nonHTTP.map(\.id.pid)) == [41, 42])
+        #expect(nonHTTP.allSatisfy { $0.kind == .server })
+        #expect(services.first { $0.id.pid == 43 }?.isKnownNonHTTP == false)
+    }
+
     @Test func asksListenerDiscoveryOnlyForScannedProcesses() async throws {
         let requests = PIDRequests()
         let records = [

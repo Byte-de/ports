@@ -60,6 +60,20 @@ struct ClassifierTests {
         #expect(!unknown.isDevelopment)
     }
 
+    @Test func knownNonHTTPDaemons() {
+        for record in [
+            process("/opt/homebrew/opt/postgresql@17/bin/postgres", arguments: ["postgres", "-D", "/tmp/data"]),
+            process("/opt/homebrew/opt/redis/bin/redis-server", arguments: ["redis-server *:6379"]),
+            process("/usr/local/mysql/bin/mysqld"), process("/opt/homebrew/bin/mongod"),
+            process("/usr/local/bin/memcached"),
+        ] { #expect(classifier.isKnownNonHTTP(record), "\(record.executable)") }
+        for record in [
+            process("/opt/homebrew/bin/nginx", arguments: ["nginx: master process nginx"]),
+            process("/opt/homebrew/bin/caddy", arguments: ["caddy", "run"]),
+            process("/usr/bin/python3", arguments: ["python3", "-m", "http.server", "8000"]),
+        ] { #expect(!classifier.isKnownNonHTTP(record), "\(record.command)") }
+    }
+
     @Test func doesNotMistakeBundledCLIForDesktopApplication() {
         let backend = process(
             "/Applications/ChatGPT.app/Contents/Resources/CodexCLI.app/Contents/MacOS/codex",

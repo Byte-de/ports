@@ -219,6 +219,10 @@ private struct NotchView: View {
                 Rectangle().fill(DS.line).frame(width: 1, height: 12)
                 Image(systemName: "server.rack")
                 Text(model.counts.servers, format: .number)
+                if model.isSharingPublicly {
+                    Rectangle().fill(DS.line).frame(width: 1, height: 12)
+                    Image(systemName: "globe").foregroundStyle(DS.accent)
+                }
                 Spacer()
                 if model.demoMode { Text("DEMO").font(.system(size: 8)).foregroundStyle(DS.orange) }
                 Image(systemName: "chevron.down").font(.system(size: 9)).foregroundStyle(.secondary)
@@ -226,7 +230,11 @@ private struct NotchView: View {
                 .padding(.horizontal, 20).frame(width: 272, height: 44).contentShape(Rectangle())
                 .blur(radius: state.expanded && !accessibility.reduceMotion ? 2 : 0)
         }.buttonStyle(.plain)
-            .accessibilityLabel("Byte Ports öffnen")
+            .accessibilityLabel(Text(compactLabel))
+    }
+
+    private var compactLabel: LocalizedStringResource {
+        model.isSharingPublicly ? "Open \(AppInfo.name), public share active" : "Open \(AppInfo.name)"
     }
 
     private func toggle() { PanelWindowCoordinator.shared.toggleNotch() }

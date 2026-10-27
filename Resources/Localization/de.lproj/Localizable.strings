@@ -3,6 +3,7 @@
 /* MARK: Shared */
 "Cancel" = "Abbrechen";
 "Not responding" = "Reagiert nicht";
+"Open %@" = "%@ öffnen";
 "Quit %@" = "%@ beenden";
 "Stopped" = "Gestoppt";
 "Stopping…" = "Wird gestoppt…";
@@ -40,6 +41,7 @@
 /* MARK: Sources/PortsApp/CompactMonitorView.swift */
 
 /* MARK: Sources/PortsApp/DesignSystem.swift */
+"all interfaces" = "alle Schnittstellen";
 
 /* MARK: Sources/PortsApp/LaunchModel.swift */
 "“%@” exited" = "„%@“ beendet";
@@ -62,6 +64,7 @@
 "Detection failed: %@" = "Erkennung fehlgeschlagen: %@";
 
 /* MARK: Sources/PortsApp/NotchController.swift */
+"Open %@, public share active" = "%@ öffnen, öffentliche Freigabe aktiv";
 
 /* MARK: Sources/PortsApp/OnboardingView.swift */
 
@@ -79,6 +82,7 @@
 "Sharing didn't stop" = "Freigabe nicht beendet";
 
 /* MARK: Sources/PortsApp/PortsApp.swift */
+"%@ – public share active" = "%@ – öffentliche Freigabe aktiv";
 
 /* MARK: Sources/PortsApp/PreferencesView.swift */
 
@@ -101,12 +105,28 @@
 "The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
 
 /* MARK: Sources/PortsApp/StatusItemMenu.swift */
-"Open %@" = "%@ öffnen";
 "Settings…" = "Einstellungen…";
 
 /* MARK: Sources/PortsApp/TunnelModel.swift */
+"Connecting to Cloudflare…" = "Cloudflare verbindet…";
+"Public · Cloudflare" = "Öffentlich · Cloudflare";
+"Reconnecting…" = "Verbindung wird erneuert…";
+"Share ended" = "Freigabe beendet";
+"Share is live · copy the link from its row" = "Freigabe bereit · Link in der Zeile kopieren";
+"Share link copied" = "Freigabelink kopiert";
+"Stopping share…" = "Freigabe wird beendet…";
 
 /* MARK: Sources/PortsApp/TunnelViews.swift */
+"ADDRESSES" = "ADRESSEN";
+"Also reachable on your network" = "Auch im Netzwerk erreichbar";
+"Anyone with the link can reach this server through Cloudflare, without a password. Sharing ends when you stop it or quit the app." = "Jeder mit dem Link erreicht diesen Server über Cloudflare, ohne Passwort. Die Freigabe endet, wenn du sie stoppst oder die App beendest.";
+"Copy URL" = "URL kopieren";
+"Copy share link" = "Freigabelink kopieren";
+"Doesn't answer HTTP – can't be shared" = "Antwortet nicht über HTTP – Teilen nicht möglich";
+"No HTTP" = "Kein HTTP";
+"Open in browser" = "Im Browser öffnen";
+"Preparing share…" = "Freigabe wird vorbereitet…";
+"Share publicly" = "Öffentlich teilen";
 
 /* MARK: Sources/PortsApp/UpdateModel.swift */
 
@@ -115,10 +135,10 @@
 
 /* MARK: Sources/PortsCore/CloudflareTunnel.swift */
 "Only running local HTTP development servers can be shared." = "Nur laufende lokale HTTP-Dev-Server können geteilt werden.";
-"Public sharing requires macOS 15 or later." = "Öffentlich teilen benötigt macOS 15 oder neuer.";
 "Sharing has not stopped yet. Please stop it again." = "Die Freigabe wurde noch nicht beendet. Bitte erneut stoppen.";
 "The Cloudflare client is missing from this installation. Please download and reinstall the app." = "Der Cloudflare-Client fehlt in dieser Installation. Bitte lade die App erneut herunter und installiere sie neu.";
 "The server or its port is no longer active. Please try again." = "Der Server oder sein Port ist nicht mehr aktiv. Bitte erneut versuchen.";
+"This service doesn't answer plain HTTP. Only local HTTP servers can be shared publicly." = "Dieser Dienst antwortet nicht über unverschlüsseltes HTTP. Öffentlich teilen ist nur für lokale HTTP-Server möglich.";
 
 /* MARK: Sources/PortsCore/CloudflareTunnelManager.swift */
 "Cloudflare is not responding. Check your connection and try again." = "Cloudflare antwortet nicht. Bitte Verbindung prüfen und erneut versuchen.";

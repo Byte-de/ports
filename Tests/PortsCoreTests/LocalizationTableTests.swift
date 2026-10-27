@@ -48,7 +48,10 @@ struct LocalizationTableTests {
     @Test(
         arguments: [
             (TunnelError.unsupportedServer, "Only running local HTTP development servers can be shared."),
-            (TunnelError.unsupportedSystem, "Public sharing requires macOS 15 or later."),
+            (
+                TunnelError.notHTTP,
+                "This service doesn't answer plain HTTP. Only local HTTP servers can be shared publicly."
+            ),
             (TunnelError.serverChanged, "The server or its port is no longer active. Please try again."),
             (
                 TunnelError.missingClient,

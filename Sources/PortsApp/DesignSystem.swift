@@ -327,6 +327,23 @@ enum Format {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
+    /// One port's sockets as people name them: both loopbacks are localhost, every wildcard is all interfaces.
+    static func addressSummary(_ endpoints: [ListeningEndpoint]) -> String {
+        var names: [String] = []
+        for endpoint in endpoints {
+            let name =
+                switch endpoint.address {
+                case "127.0.0.1", "::1": "localhost"
+                case "*", "0.0.0.0", "::":
+                    String(
+                        localized: "all interfaces",
+                        comment: "Address summary for a server bound to every network interface")
+                default: endpoint.address
+                }
+            if !names.contains(name) { names.append(name) }
+        }
+        return names.joined(separator: " · ")
+    }
 }
 
 struct Sparkline: View {
@@ -363,6 +380,8 @@ extension DS {
             ?? NSImage(systemSymbolName: "network", accessibilityDescription: nil) ?? NSImage()
         image.size = NSSize(width: 18, height: 18)
         image.isTemplate = true
+        // VoiceOver reads the menu bar item from its image.
+        image.accessibilityDescription = AppInfo.name
         return image
     }()
 }

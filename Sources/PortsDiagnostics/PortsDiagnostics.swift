@@ -131,6 +131,13 @@ struct PortsDiagnostics {
                 let output = await launcher.output(for: job)
                 throw MonitorError.scanFailed("Fixture listener not detected. Test output: \(output)")
             }
+            // The fixture accepts and closes without a status line, like a server that speaks another protocol.
+            stage = "http-check"
+            guard let origin = service.endpoints.first(where: { $0.port == port })?.url,
+                await HTTPOriginProbe().verdict(for: origin) == .notHTTP
+            else {
+                throw MonitorError.scanFailed("A server that closes without answering was not reported as non-HTTP")
+            }
             stage = "pause"
             try controller.perform(.pause, on: service.process)
             try await Task.sleep(for: .milliseconds(30))
@@ -167,7 +174,9 @@ struct PortsDiagnostics {
             guard !final.services.contains(where: { $0.endpoints.contains { $0.port == port } }) else {
                 throw MonitorError.scanFailed("Fixture listener still active")
             }
-            print("PASS: live TCP detection, identity, pause, resume, log capture, restart, graceful stop, cleanup")
+            print(
+                "PASS: live TCP detection, identity, HTTP check, pause, resume, log capture, restart, graceful stop, cleanup"
+            )
         } catch {
             _ = try? await launcher.stop(job)
             throw MonitorError.scanFailed("\(stage): \(error.localizedDescription)")
@@ -255,7 +264,7 @@ struct PortsDiagnostics {
             config.timeoutIntervalForResource = 5
             let session = URLSession(configuration: config)
             defer { session.invalidateAndCancel() }
-            let (initialData, initialResponse) = try await session.data(from: target.id.origin)
+            let (initialData, initialResponse) = try await session.data(from: target.origin)
             guard (initialResponse as? HTTPURLResponse)?.statusCode == 200,
                 String(decoding: initialData, as: UTF8.self) == "Byte Ports tunnel integration fixture\n"
             else {
@@ -281,7 +290,7 @@ struct PortsDiagnostics {
             }
             try await manager.stop(target.id)
             guard await manager.records().first?.phase == .stopped else { throw TunnelError.couldNotStop }
-            let (localData, _) = try await session.data(from: target.id.origin)
+            let (localData, _) = try await session.data(from: target.origin)
             guard String(decoding: localData, as: UTF8.self) == "Byte Ports tunnel integration fixture\n" else {
                 throw MonitorError.scanFailed("Stopping the share affected the local server")
             }

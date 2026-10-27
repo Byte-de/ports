@@ -52,6 +52,11 @@ quitting Ports also stops its tunnels. The bundled supervisor stops the tunnel
 if Ports exits unexpectedly. No existing cloudflared configuration is changed.
 Do not share secrets, private source trees or unprotected admin interfaces.
 
+While a share is active, the Ports icon in the menu bar turns into a globe and
+the compact notch panel shows a globe too. If you hide the Ports item in
+System Settings › Menu Bar, that indicator is hidden with it; the service row
+and, when enabled, the notch panel still show the share.
+
 [Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/)
 are intended for development, with temporary hostnames, no uptime guarantee,
 a 200 in-flight request limit and no SSE support. Some dev servers require an

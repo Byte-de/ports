@@ -16,11 +16,8 @@
 %lld Server erkannt
 %lld von %lld
 /Pfad/zum/Projekt
-ADRESSEN
 AI-Agenten
 Abbrechen
-Adresse kopieren
-Adresse öffnen
 Agenten
 Agenten und Server erscheinen automatisch im Panel.
 Aktion entfernen
@@ -37,7 +34,6 @@ Anzeigename
 App öffnen
 Arbeitsbereich
 Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.
-Auch im Netzwerk erreichbar
 Ausgabe
 Ausgabe kopieren
 Auswählen…
@@ -53,7 +49,6 @@ Byte Ports liest Prozesse des angemeldeten Benutzers und deren TCP-Listener. Cha
 Byte Ports öffnen
 Byte Ports – Notch
 CPU-Verlauf aus %lld Messungen
-Cloudflare verbindet…
 DEMO
 Das Panel
 Dein Zugriff
@@ -95,8 +90,6 @@ Fenster & Menüleiste
 Fenster und Menüleiste verwenden
 Fortsetzen
 Freigabe beenden
-Freigabe beendet
-Freigabe wird beendet…
 Freigabelink kopieren
 Freigabelink kopieren: %@
 Freigabelink kopiert
@@ -107,7 +100,6 @@ Im Finder öffnen
 Im Terminal oder als App öffnen
 Immer in Reichweite.
 Intervall
-Jeder mit dem Link kann auf diesen Server zugreifen. Die Verbindung läuft über Cloudflare, ohne zusätzlichen Passwortschutz.
 Keine Prozesse
 Keine Treffer
 Keine aktiven Agenten
@@ -174,13 +166,10 @@ Stoppen…
 Suche nach Projekt, Agent, PID oder Port.
 Suche schließen
 Suchen (⌘F)
-Teile nur Inhalte, die öffentlich sein dürfen. Die Freigabe endet, sobald du sie stoppst oder Byte Ports beendest.
-Teilen erstellt einen öffentlichen Link. Jeder mit dem Link kann den Server aufrufen.
 Terminal
 URL kopieren
 URL kopiert
 Update wird geprüft…
-Verbindung wird erneuert…
 Version %@ laden ↗
 Vorheriger Schritt
 Weiter
@@ -193,7 +182,6 @@ Zusätzlich am oberen Bildschirmrand.
 z. B. my-agent
 Öffentlich teilen
 Öffentlich teilen verbindet den gewählten HTTP-Server mit Cloudflare. Jeder mit dem Link kann ihn aufrufen. Freigaben enden beim Stoppen oder Beenden von Byte Ports. Die manuelle Update-Prüfung fragt GitHub nach der neuesten Version.
-Öffentlich · Cloudflare
 Öffnen
 Über Byte Ports
 Über den Zurück-Pfeil gelangst du zur Liste.

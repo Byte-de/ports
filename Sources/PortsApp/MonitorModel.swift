@@ -107,14 +107,17 @@ final class MonitorModel {
     var restartAfterForce: Set<UUID> = []
     var tunnelRecords: [TunnelRecord] = []
     var sharingBusy: Set<TunnelKey> = []
+    /// Ports that answered something other than HTTP when sharing started, until their process exits.
+    var nonHTTPTargets: Set<TunnelKey> = []
     var isQuitting = false
     var isSwitchingDemo = false
     @ObservationIgnored let tunnels = CloudflareTunnelManager(
         client: Bundle.main.bundleURL.appending(path: "Contents/Helpers/cloudflared"),
         runner: Bundle.main.bundleURL.appending(path: "Contents/Helpers/ports-tunnel-runner"))
-    @ObservationIgnored var tunnelTask: Task<Void, Never>?
+    @ObservationIgnored var tunnelObserver: Task<Void, Never>?
     @ObservationIgnored var launchObserver: Task<Void, Never>?
-    @ObservationIgnored var pendingTunnelCopy: Set<TunnelKey> = []
+    /// Shares whose link may still be copied without a second click.
+    @ObservationIgnored var pendingShareCopies: [TunnelKey: ShareLinkHandoff] = [:]
     @ObservationIgnored private let scanner = ProcessScanner()
     @ObservationIgnored private let controller = ProcessController()
     @ObservationIgnored let launcher = LaunchManager()
@@ -264,7 +267,7 @@ final class MonitorModel {
 
     func startMonitoring() {
         guard loopTask == nil else { return }
-        startTunnelMonitoring()
+        observeTunnels()
         startLaunchObserver()
         observeSystemActivity()
         loopTask = Task { [weak self] in
@@ -398,6 +401,10 @@ final class MonitorModel {
             }
             snapshot = next
             hasScanned = true
+            // A scan without listeners can't prove an exit. Assigned only when something is pruned, so rows don't
+            // redraw after every scan.
+            let presentNonHTTP = nonHTTPTargets.filter { nextIDs.contains($0.process) }
+            if next.warning == nil, presentNonHTTP.count != nonHTTPTargets.count { nonHTTPTargets = presentNonHTTP }
             histories = histories.filter { nextIDs.contains($0.key) }
             for service in services {
                 if let value = service.cpuPercent {
@@ -469,7 +476,7 @@ final class MonitorModel {
                 defer { isSwitchingDemo = false }
                 do {
                     try await tunnels.stopAll()
-                    pendingTunnelCopy.removeAll()
+                    pendingShareCopies.removeAll()
                     await updateTunnels()
                     applyDemoToggle()
                 } catch { report(error, as: .generic) }

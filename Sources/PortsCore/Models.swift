@@ -198,11 +198,13 @@ public struct ServiceRecord: Identifiable, Equatable, Sendable {
     public let ports: [ServicePort]
     public let cpuPercent: Double?
     public let isDesktopApplication: Bool
+    /// A daemon that never answers HTTP, such as a database: never offered for sharing, never probed.
+    public let isKnownNonHTTP: Bool
 
     public init(
         process: ProcessRecord, kind: ServiceKind, provider: AgentProvider? = nil,
         framework: String, endpoints: [ListeningEndpoint] = [], cpuPercent: Double? = nil,
-        isDesktopApplication: Bool = false
+        isDesktopApplication: Bool = false, isKnownNonHTTP: Bool = false
     ) {
         self.process = process
         self.kind = kind
@@ -212,6 +214,7 @@ public struct ServiceRecord: Identifiable, Equatable, Sendable {
         self.ports = ServicePort.group(endpoints)
         self.cpuPercent = cpuPercent
         self.isDesktopApplication = isDesktopApplication
+        self.isKnownNonHTTP = isKnownNonHTTP
     }
 
     public var title: String { provider?.name ?? framework }

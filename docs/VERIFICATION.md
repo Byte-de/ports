@@ -98,6 +98,20 @@ leave it out of averages. App traces are recorded with the release checks.
   Git repository is blocked by Vercel's Git-author/team association check. Complete
   that association through the account owner before redeploying the final source.
 
+## Pending manual checks
+
+Added with the changes they cover; the release checklist takes them over.
+
+- Sharing indicator: the menu bar icon turns into a globe within 0.5 s of a
+  share starting and returns to the port glyph once the last share has stopped.
+  VoiceOver reads “Byte Ports – public share active”, otherwise “Byte Ports”.
+  With the image label, the status item still opens the panel, binds the window
+  opener and shows its right-click menu. The compact notch shows an accent globe
+  after the counts, and VoiceOver reads “Open Byte Ports, public share active”.
+  Demo mode shows neither.
+- With the Ports item hidden in System Settings › Menu Bar, the globe is hidden
+  too, as the README states; the service row and the notch still show the share.
+
 ## Hardware and session follow-up
 
 The supported minimum system is declared, not a claim to have tested every 26.x

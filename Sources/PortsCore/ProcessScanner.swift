@@ -133,7 +133,8 @@ public actor ProcessScanner {
                     kind: provider != nil ? .agent : (framework.isDevelopment ? .server : .listener),
                     provider: provider, framework: framework.name,
                     endpoints: endpoints, cpuPercent: cpu,
-                    isDesktopApplication: classifier.isDesktopAgent(process)
+                    isDesktopApplication: classifier.isDesktopAgent(process),
+                    isKnownNonHTTP: classifier.isKnownNonHTTP(process)
                 ))
         }
         samples = nextSamples

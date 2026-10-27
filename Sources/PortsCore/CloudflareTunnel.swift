@@ -1,30 +1,29 @@
-import Darwin
 import Foundation
 
+/// 127.0.0.1, ::1 and * on one port are one server, so they share one tunnel.
 public struct TunnelKey: Hashable, Sendable {
     public let process: ProcessIdentity
-    public let origin: URL
+    public let port: UInt16
 }
 
 public struct TunnelTarget: Identifiable, Equatable, Sendable {
     public let id: TunnelKey
     public let endpoint: ListeningEndpoint
+    public let origin: URL
     public let name: String
 
+    /// Only loopback HTTP origins of running development servers. HTTP itself is confirmed during start.
     public init(service: ServiceRecord, endpoint: ListeningEndpoint) throws {
-        var ipv4 = in_addr()
-        var ipv6 = in6_addr()
-        let localAddress =
-            ["*", "localhost"].contains(endpoint.address)
-            || inet_pton(AF_INET, endpoint.address, &ipv4) == 1
-            || inet_pton(AF_INET6, endpoint.address, &ipv6) == 1
-        guard service.kind == .server, !service.isDesktopApplication,
+        // URL.host returns an IPv6 literal without its brackets.
+        guard service.kind == .server, !service.isDesktopApplication, !service.isKnownNonHTTP,
             service.process.state == .running, endpoint.pid == service.id.pid,
-            service.endpoints.contains(endpoint), endpoint.port > 0, localAddress,
-            let origin = endpoint.url, origin.scheme == "http", origin.host != nil
+            service.endpoints.contains(endpoint), endpoint.port > 0,
+            let origin = endpoint.url, origin.scheme == "http",
+            let host = origin.host, ["127.0.0.1", "::1"].contains(host)
         else { throw TunnelError.unsupportedServer }
-        id = TunnelKey(process: service.id, origin: origin)
+        id = TunnelKey(process: service.id, port: endpoint.port)
         self.endpoint = endpoint
+        self.origin = origin
         name = service.process.projectName
     }
 }
@@ -43,18 +42,18 @@ public struct TunnelRecord: Identifiable, Equatable, Sendable {
     public var message: String?
 }
 
-public enum TunnelError: LocalizedError, Sendable {
-    case unsupportedServer, unsupportedSystem, serverChanged, missingClient, shuttingDown, couldNotStop
+public enum TunnelError: LocalizedError, Sendable, Equatable {
+    case unsupportedServer, notHTTP, serverChanged, missingClient, shuttingDown, couldNotStop
     public var errorDescription: String? {
         switch self {
         case .unsupportedServer:
             String(
                 localized: "Only running local HTTP development servers can be shared.",
                 comment: "Error when public sharing is requested for anything but a running local HTTP server")
-        case .unsupportedSystem:
+        case .notHTTP:
             String(
-                localized: "Public sharing requires macOS 15 or later.",
-                comment: "Error when public sharing is requested on a macOS version that cannot run it")
+                localized: "This service doesn't answer plain HTTP. Only local HTTP servers can be shared publicly.",
+                comment: "Error when the server to share answered something other than HTTP over loopback")
         case .serverChanged:
             String(
                 localized: "The server or its port is no longer active. Please try again.",
@@ -154,12 +153,14 @@ final class CloudflareLogBuffer: @unchecked Sendable {
 }
 
 struct TunnelOriginValidator: Sendable {
+    var inspector: any ProcessInspecting = NativeProcessInspector()
+    var listeners: @Sendable (Int32) -> [ListeningEndpoint]? = { NativeListenerDiscovery().listeners(of: $0) }
+
     func isCurrent(_ target: TunnelTarget) -> Bool {
-        let inspector = NativeProcessInspector()
         let pid = target.id.process.pid
-        // The second identity check rejects a PID reused while the sockets were read.
-        return inspector.process(pid: pid)?.identity == target.id.process
-            && NativeListenerDiscovery().listeners(of: pid)?.contains(target.endpoint) == true
-            && inspector.process(pid: pid)?.identity == target.id.process
+        // Identity before and after the socket read: a PID reused in between is rejected.
+        return inspector.identity(pid: pid) == target.id.process
+            && listeners(pid)?.contains(target.endpoint) == true
+            && inspector.identity(pid: pid) == target.id.process
     }
 }

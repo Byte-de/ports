@@ -7,7 +7,9 @@ struct ShareServerButton: View {
     let surface: MonitorSurface
     private var record: TunnelRecord? { model.tunnelRecord(target) }
     private var help: LocalizedStringResource {
-        record?.phase == .ready ? "Freigabelink kopieren" : "Öffentlich teilen"
+        // Busy covers the HTTP check and the client launch, before a share record exists.
+        if model.sharingBusy.contains(target.id) { return "Preparing share…" }
+        return record?.phase == .ready ? "Copy share link" : "Share publicly"
     }
     private var working: Bool {
         model.sharingBusy.contains(target.id) || [.starting, .reconnecting, .stopping].contains(record?.phase)
@@ -25,6 +27,54 @@ struct ShareServerButton: View {
     }
 }
 
+/// 127.0.0.1, ::1 and * on one port are one server: one row, and open, copy and share all use its primary address.
+struct ServiceAddressSection: View {
+    @Bindable var model: MonitorModel
+    let service: ServiceRecord
+    let surface: MonitorSurface
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("ADDRESSES").overline()
+            ForEach(service.ports) { port in
+                HStack(spacing: 8) {
+                    Text(verbatim: ":\(port.port)").font(.system(size: 12, design: .monospaced))
+                        .textSelection(.enabled)
+                    Text(verbatim: Format.addressSummary(port.endpoints)).font(.system(size: 11))
+                        .foregroundStyle(DS.muted).lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                    Spacer()
+                    IconButton(symbol: "arrow.up.forward.square", help: "Open in browser") {
+                        model.openEndpoint(port.primary)
+                    }
+                    .disabled(model.demoMode)
+                    IconButton(symbol: "doc.on.doc", help: "Copy URL") {
+                        model.copy(port.primary.url?.absoluteString ?? "\(port.primary.address):\(port.port)")
+                    }
+                    if let target = model.tunnelTarget(service, endpoint: port.primary) {
+                        ShareServerButton(model: model, target: target, surface: surface)
+                    } else if model.answersNoHTTP(service, port: port.port) {
+                        Text("No HTTP").font(.system(size: 10)).foregroundStyle(DS.muted)
+                            .help("Doesn't answer HTTP – can't be shared")
+                    }
+                }
+                if let record = model.tunnelRecord(for: service.id, port: port.port), record.phase != .stopped {
+                    TunnelStatusRow(model: model, record: record)
+                }
+            }
+            // A share whose port closed keeps its notice, which says why it ended, until it is dismissed.
+            ForEach(model.visibleTunnels(for: service).filter { !portNumbers.contains($0.id.port) }) { record in
+                TunnelStatusRow(model: model, record: record)
+            }
+            if service.ports.contains(where: \.isNetworkExposed) {
+                Label("Also reachable on your network", systemImage: "network")
+                    .font(.system(size: 10)).foregroundStyle(DS.orange)
+            }
+        }
+    }
+
+    private var portNumbers: Set<UInt16> { Set(service.ports.map(\.port)) }
+}
+
 struct PublicShareConfirmation: View {
     @Bindable var model: MonitorModel
     let target: TunnelTarget
@@ -34,11 +84,7 @@ struct PublicShareConfirmation: View {
             Label("Server öffentlich teilen?", systemImage: "globe")
                 .font(.system(size: 17, weight: .medium))
             Text(
-                "Jeder mit dem Link kann auf diesen Server zugreifen. Die Verbindung läuft über Cloudflare, ohne zusätzlichen Passwortschutz."
-            )
-            .font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(4)
-            Text(
-                "Teile nur Inhalte, die öffentlich sein dürfen. Die Freigabe endet, sobald du sie stoppst oder Byte Ports beendest."
+                "Anyone with the link can reach this server through Cloudflare, without a password. Sharing ends when you stop it or quit the app."
             )
             .font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(4)
             HStack {
@@ -64,16 +110,6 @@ struct TunnelStatusRow: View {
         self.record = record
     }
 
-    private var title: LocalizedStringResource {
-        switch record.phase {
-        case .starting: "Cloudflare verbindet…"
-        case .ready: "Öffentlich · Cloudflare"
-        case .reconnecting: "Verbindung wird erneuert…"
-        case .stopping: "Freigabe wird beendet…"
-        case .stopped: "Freigabe beendet"
-        case .failed: "Freigabe beendet"
-        }
-    }
     private var detail: Text {
         if let message = record.message { return Text(verbatim: message) }
         return Text("Port \(String(record.target.endpoint.port)) · Abbrechen jederzeit möglich")
@@ -93,7 +129,7 @@ struct TunnelStatusRow: View {
                 }
             }.frame(width: 16).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 10, weight: .medium)).foregroundStyle(DS.muted)
+                Text(record.phase.statusTitle).font(.system(size: 10, weight: .medium)).foregroundStyle(DS.muted)
                     .contentTransition(.opacity)
                 if let url = record.publicURL, record.phase == .ready {
                     Button {

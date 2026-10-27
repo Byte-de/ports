@@ -75,18 +75,24 @@ struct PortsApp: App {
     }
 }
 
-/// Alive from launch, unlike the main window, so it owns the window opener.
+/// Alive from launch, unlike the main window, so it owns the window opener. MenuBarExtra keeps only the label's image
+/// and drops SwiftUI overlays and accessibility modifiers, so the image's own description is what VoiceOver reads.
 struct MenuBarLabel: View {
     let model: MonitorModel
     @Environment(\.openWindow) private var openWindow
 
+    /// A globe while a server is reachable from the internet, so the share stays visible with every panel closed.
+    @MainActor private static let sharingGlyph =
+        NSImage(
+            systemSymbolName: "globe",
+            accessibilityDescription: String(
+                localized: "\(AppInfo.name) – public share active",
+                comment: "VoiceOver description of the menu bar icon while a server is shared publicly"))
+        ?? NSImage()
+
     var body: some View {
-        Label {
-            Text(model.counts.total, format: .number)
-        } icon: {
-            Image(nsImage: DS.portGlyph)
-        }
-        .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
+        Image(nsImage: model.isSharingPublicly ? Self.sharingGlyph : DS.portGlyph)
+            .onAppear { model.bindWindowOpener { openWindow(id: "monitor") } }
     }
 }
 
