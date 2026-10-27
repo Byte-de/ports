@@ -13,26 +13,16 @@ public struct LaunchConfiguration: Identifiable, Codable, Equatable, Sendable {
         self.directory = directory
     }
 
+    /// Throws `LaunchError.invalidName`, `.invalidCommand` or `.invalidDirectory`.
     public func validate(fileManager: FileManager = .default) throws {
-        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw MonitorError.launchFailed(
-                String(localized: "Please give the action a name.", comment: "Validation error for a saved action"))
-        }
-        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            !command.contains("\0")
-        else {
-            throw MonitorError.launchFailed(
-                String(localized: "Please enter a valid command.", comment: "Validation error for a saved action"))
+        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw LaunchError.invalidName }
+        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !command.contains("\0") else {
+            throw LaunchError.invalidCommand
         }
         var isDirectory: ObjCBool = false
         guard directory.hasPrefix("/"), fileManager.fileExists(atPath: directory, isDirectory: &isDirectory),
             isDirectory.boolValue
-        else {
-            throw MonitorError.launchFailed(
-                String(
-                    localized: "Choose an existing project folder with an absolute path.",
-                    comment: "Validation error for a saved action"))
-        }
+        else { throw LaunchError.invalidDirectory }
     }
 }
 

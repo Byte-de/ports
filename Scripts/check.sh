@@ -13,6 +13,7 @@ done
 binary_directory="$(/usr/bin/swift build "${swift_options[@]}" --show-bin-path)"
 python3 "$project_root/Scripts/test-tunnel-runner.py" "$binary_directory/ports-tunnel-runner"
 "$binary_directory/ports-diagnostics" --integration
+"$binary_directory/ports-diagnostics" --listener-parity
 "$binary_directory/ports-diagnostics"
 "$binary_directory/ports-diagnostics" --benchmark 3 >/dev/null
 python3 -I "$project_root/Scripts/check-localization.py" --self-test

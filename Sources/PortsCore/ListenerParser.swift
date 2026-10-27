@@ -1,5 +1,7 @@
 import Foundation
 
+/// Parses `lsof -F` output. Scans read sockets natively; `ports-diagnostics --listener-parity` uses this parser to
+/// compare that discovery with lsof.
 public enum ListenerParser {
     /// lsof's field format is stable across command names containing whitespace.
     public static func parse(_ output: String) -> [ListeningEndpoint] {

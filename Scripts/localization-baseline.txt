@@ -1,9 +1,6 @@
 %@ erkannt
 %@ gestartet
-%@ gestoppt
-%@ neu gestartet
 %@ nicht mehr aktiv
-%@ starten
 %@ stoppen?
 %@ stoppen…
 %@ · Details anzeigen
@@ -42,14 +39,11 @@ Arbeitsbereich
 Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.
 Auch im Netzwerk erreichbar
 Ausgabe
-Ausgabe anzeigen
 Ausgabe kopieren
 Auswählen…
 Automatische Erkennung pausiert
 BEFEHL
 Beenden
-Beendet
-Befehl kopieren
 Beispieldaten · Prozessaktionen sind deaktiviert
 Bereit
 Bereit für deinen ersten Dienst
@@ -67,23 +61,15 @@ Deine Agenten und Dev-Server im Blick.
 Demo
 Demo ansehen
 Demo öffnen
-Der Befehl läuft in einer zsh-Login-Shell im gewählten Ordner. Interaktive Agenten startest du weiterhin im Terminal; Byte Ports erkennt sie automatisch.
-Der Dienst reagiert noch nicht auf SIGTERM. Ein Neustart wurde deshalb nicht ausgeführt.
-Der Dienst und seine von Byte Ports erfassten Kindprozesse werden zum Beenden aufgefordert.
 Der Status beschreibt den Prozess. Chat-Inhalte und Aufgabenfortschritt werden nicht ausgelesen.
 Details anzeigen
 Dev-Server
-Die Identität des gestarteten Prozesses ist nicht lesbar. Bitte im Terminal prüfen.
-Die Systemabfrage konnte nicht gelesen werden.
 Die Update-Prüfung ist fehlgeschlagen. Bitte versuche es später erneut.
 Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.
 Dienst
-Dienst neu starten
 Dienst starten
 Dienst starten (⌘N)
 Dienst starten…
-Dienst stoppen…
-Dienste stoppen und beenden
 ERKENNUNG
 Eigene Agenten
 Ein Befehl. Ein Klick.
@@ -104,10 +90,7 @@ Erkennung fortsetzen
 Erkennung pausieren
 Erneut versuchen
 Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.
-Es laufen noch gestartete Dienste.
 Exakter Dateiname oder Einstiegsskript, ohne Dateiendung.
-Exit %d
-Extern gestartete Prozesse werden nicht automatisch neu gestartet. Kindprozesse werden nicht einzeln beendet.
 Fenster & Menüleiste
 Fenster und Menüleiste verwenden
 Fortsetzen
@@ -117,9 +100,6 @@ Freigabe wird beendet…
 Freigabelink kopieren
 Freigabelink kopieren: %@
 Freigabelink kopiert
-Für diesen Dienst läuft bereits eine Aktion.
-GESPEICHERT
-GESTARTET
 Hinweis schließen
 Hinzufügen
 Im Browser öffnen
@@ -135,7 +115,6 @@ Keine aktiven Dienste
 Keine aktiven Projekte
 Kopiert
 Laufende Agenten und Dev-Server erscheinen automatisch hier.
-Laufende Arbeit im Projekt „%@“ wird unterbrochen. Der Prozess (PID %@) wird zum Beenden aufgefordert.
 Laufende Prozesse werden erfasst…
 Laufzeit
 Letzte 256 KB · stdout + stderr
@@ -187,7 +166,6 @@ Schritt %lld von %lld: %@
 Server
 Server öffentlich teilen?
 Speichere einen Startbefehl mit seinem Projektordner.
-Startaktion
 Startbefehl kopieren
 Starte deine Agenten und Server wie gewohnt.
 Starts, beendete Prozesse und deine Aktionen erscheinen hier.
@@ -204,7 +182,6 @@ URL kopiert
 Update wird geprüft…
 Verbindung wird erneuert…
 Version %@ laden ↗
-Vor dem Beenden müssen die von Byte Ports gestarteten Dienste gestoppt werden. Extern gestartete Prozesse bleiben unberührt.
 Vorheriger Schritt
 Weiter
 Willkommen

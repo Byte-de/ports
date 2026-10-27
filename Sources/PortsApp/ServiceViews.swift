@@ -32,7 +32,11 @@ struct ServiceRow: View {
                     } else {
                         model.activate(service)
                     }
-                }.disabled(model.demoMode)
+                }.disabled(
+                    model.demoMode
+                        || (service.primaryEndpoint == nil && !service.isDesktopApplication
+                            && service.projectDirectory == nil)
+                )
                 IconButton(symbol: "doc.on.doc", help: service.primaryEndpoint == nil ? "PID kopieren" : "URL kopieren")
                 {
                     if let url = service.primaryEndpoint?.url {
@@ -133,7 +137,7 @@ struct InspectorView: View {
                             Sparkline(values: history).frame(width: 90, height: 23)
                         }
                     }.font(.system(size: 12, design: .monospaced)).monospacedDigit()
-                    if let directory = service.process.workingDirectory {
+                    if let directory = service.projectDirectory {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("PROJEKTORDNER").overline()
                             HStack(spacing: 8) {
@@ -147,28 +151,31 @@ struct InspectorView: View {
                             }
                         }
                     }
-                    if !service.endpoints.isEmpty {
+                    if !service.ports.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("ADRESSEN").overline()
-                            ForEach(service.endpoints, id: \.self) { endpoint in
+                            ForEach(service.ports) { port in
                                 HStack {
-                                    Text(verbatim: "\(endpoint.address):\(endpoint.port)")
-                                        .font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+                                    Group {
+                                        Text(verbatim: ":\(port.port)")
+                                        Text(verbatim: port.addresses.joined(separator: " · "))
+                                            .foregroundStyle(DS.muted).lineLimit(1).truncationMode(.middle)
+                                    }.font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
                                     Spacer()
                                     IconButton(symbol: "arrow.up.forward.square", help: "Adresse öffnen") {
-                                        model.openEndpoint(endpoint)
+                                        model.openEndpoint(port.primary)
                                     }
                                     .disabled(model.demoMode)
                                     IconButton(symbol: "doc.on.doc", help: "Adresse kopieren") {
                                         model.copy(
-                                            endpoint.url?.absoluteString ?? "\(endpoint.address):\(endpoint.port)")
+                                            port.primary.url?.absoluteString ?? "\(port.primary.address):\(port.port)")
                                     }
-                                    if let target = model.tunnelTarget(service, endpoint: endpoint) {
+                                    if let target = model.tunnelTarget(service, endpoint: port.primary) {
                                         ShareServerButton(model: model, target: target, surface: surface)
                                     }
                                 }
                             }
-                            if service.endpoints.contains(where: \.isNetworkExposed) {
+                            if service.ports.contains(where: \.isNetworkExposed) {
                                 Label("Auch im Netzwerk erreichbar", systemImage: "network")
                                     .font(.system(size: 10)).foregroundStyle(DS.orange)
                             }
@@ -208,7 +215,7 @@ struct InspectorView: View {
                                 service.isDesktopApplication ? "App öffnen" : "Terminal",
                                 systemImage: "arrow.up.forward.square")
                         }.buttonStyle(QuietButton()).disabled(
-                            model.demoMode || (!service.isDesktopApplication && service.process.workingDirectory == nil)
+                            model.demoMode || (!service.isDesktopApplication && service.projectDirectory == nil)
                         )
                         Spacer()
                         Button {
@@ -240,14 +247,7 @@ struct StopConfirmation: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("\(pending.service.title) stoppen?").font(.system(size: 17, weight: .medium))
-            Text(
-                "Laufende Arbeit im Projekt „\(pending.service.process.projectName)“ wird unterbrochen. Der Prozess (PID \(String(pending.service.id.pid))) wird zum Beenden aufgefordert."
-            )
-            .font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(3)
-            Text(
-                "Extern gestartete Prozesse werden nicht automatisch neu gestartet. Kindprozesse werden nicht einzeln beendet."
-            )
-            .font(.system(size: 11)).foregroundStyle(DS.muted).lineSpacing(3)
+            consequence.font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(3)
             HStack {
                 Spacer()
                 Button("Abbrechen") { dismiss() }.buttonStyle(QuietButton()).keyboardShortcut(.cancelAction)
@@ -257,6 +257,15 @@ struct StopConfirmation: View {
                 }.buttonStyle(QuietButton(tint: DS.red))
             }
         }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
+    }
+    /// Agents lose unfinished work; other processes are only asked to quit.
+    private var consequence: Text {
+        let service = pending.service
+        guard service.kind == .agent else {
+            return Text("The process will be asked to quit and won't restart automatically.")
+        }
+        let project = service.projectDirectory == nil ? service.title : service.process.projectName
+        return Text("Current work in “\(project)” will be interrupted. The process won't restart automatically.")
     }
 }
 
@@ -281,13 +290,14 @@ struct ServiceIdentityLabel: View {
                 }
             }.font(.system(size: 13, weight: .medium))
             HStack(spacing: 6) {
-                Image(systemName: "folder").font(.system(size: 11)).accessibilityHidden(true)
-                location.font(.system(size: 11, design: .monospaced)).lineLimit(1).truncationMode(.middle)
+                Image(systemName: location.symbol).font(.system(size: 11)).accessibilityHidden(true)
+                location.text.font(.system(size: 11, design: .monospaced)).lineLimit(1).truncationMode(.middle)
             }.foregroundStyle(DS.muted)
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
-    private var location: Text {
-        if let directory = service.process.workingDirectory { return Text(verbatim: Format.path(directory)) }
-        return Text("PID \(String(service.id.pid))")
+    private var location: (symbol: String, text: Text) {
+        if let directory = service.projectDirectory { return ("folder", Text(verbatim: Format.path(directory))) }
+        if service.isDesktopApplication { return ("macwindow", Text("Desktop app")) }
+        return ("number", Text("PID \(String(service.id.pid))"))
     }
 }

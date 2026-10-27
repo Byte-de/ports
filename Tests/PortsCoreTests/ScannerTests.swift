@@ -1,3 +1,4 @@
+import Synchronization
 import Testing
 
 @testable import PortsCore
@@ -12,10 +13,16 @@ private struct SnapshotInspector: ProcessInspecting {
 private struct FixtureListeners: ListenerDiscovering {
     var endpoints: [ListeningEndpoint] = []
     var failure: MonitorError?
-    func listeners() throws -> [ListeningEndpoint] {
+    var requests: PIDRequests?
+    func listeners(of pids: [Int32]) throws -> [ListeningEndpoint] {
+        requests?.calls.withLock { $0.append(pids) }
         if let failure { throw failure }
         return endpoints
     }
+}
+
+private final class PIDRequests: Sendable {
+    let calls = Mutex<[[Int32]]>([])
 }
 
 struct ScannerTests {
@@ -52,11 +59,40 @@ struct ScannerTests {
         #expect(snapshot.services.map(\.id.pid) == [41])
     }
 
+    @Test func ordersAgentsBeforeServersBeforeListeners() async throws {
+        let records = [
+            process("/usr/bin/nc", name: "nc", pid: 41),
+            process("/usr/local/bin/node", arguments: ["node", "/app/node_modules/vite/bin/vite.js"], pid: 42),
+            process("/opt/bin/claude", pid: 43),
+        ]
+        let scanner = ProcessScanner(
+            inspector: SnapshotInspector(initial: records, current: records),
+            listenerDiscovery: FixtureListeners(endpoints: [
+                .init(pid: 41, address: "127.0.0.1", port: 9000), .init(pid: 42, address: "127.0.0.1", port: 5173),
+            ]))
+        let services = try await scanner.scan().services
+        #expect(services.map(\.kind) == [.agent, .server, .listener])
+        #expect(services.map(\.id.pid) == [43, 42, 41])
+    }
+
+    @Test func asksListenerDiscoveryOnlyForScannedProcesses() async throws {
+        let requests = PIDRequests()
+        let records = [
+            process("/bin/zsh", pid: 41), process("/usr/bin/node", pid: 42),
+            process("/bin/sleep", pid: 43, state: .exited),
+        ]
+        let scanner = ProcessScanner(
+            inspector: SnapshotInspector(initial: records, current: records),
+            listenerDiscovery: FixtureListeners(requests: requests))
+        _ = try await scanner.scan()
+        #expect(requests.calls.withLock { $0 } == [[41, 42]])
+    }
+
     @Test func reportsListenerFailureWithoutDroppingAgents() async throws {
         let agent = process("/opt/bin/claude")
         let scanner = ProcessScanner(
             inspector: SnapshotInspector(initial: [agent], current: [agent]),
-            listenerDiscovery: FixtureListeners(failure: .timedOut))
+            listenerDiscovery: FixtureListeners(failure: .scanFailed("fixture")))
         let snapshot = try await scanner.scan()
         #expect(snapshot.services.count == 1)
         #expect(snapshot.warning != nil)

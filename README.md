@@ -105,6 +105,10 @@ integration checks. No privileged daemon or shell installer is used.
 A listener is evidence of an open port, not an HTTP health check. Agent detection
 is process-based and does not imply access to a task's internal progress.
 
+Stopping a launched command also stops the processes it started, including ones
+that outlived their parent. Detached daemons, which leave the command's session,
+are left alone and do not keep the command marked as running.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), the

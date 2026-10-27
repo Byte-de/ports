@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import PortsCore
@@ -71,5 +72,14 @@ struct ClassifierTests {
         let custom = ServiceClassifier(customRules: [.init(name: "My agent", executableName: "my-agent")])
         #expect(custom.agent(for: process("/opt/bin/my-agent"))?.name == "My agent")
         #expect(custom.agent(for: process("/opt/bin/my-agent-helper")) == nil)
+    }
+
+    @Test func emptyExecutablePathIsNotResolvedAgainstCurrentDirectory() {
+        // URL(fileURLWithPath: "") names the current directory; a rule matching it must not match an unknown path.
+        let directory = (FileManager.default.currentDirectoryPath as NSString).lastPathComponent
+        let custom = ServiceClassifier(customRules: [.init(name: "Directory", executableName: directory)])
+        let record = process("", name: "unknown")
+        #expect(custom.agent(for: record) == nil)
+        #expect(custom.framework(for: record).name == "unknown")
     }
 }

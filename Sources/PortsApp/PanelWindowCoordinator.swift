@@ -17,7 +17,12 @@ final class PanelWindowCoordinator: NSObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(windowBecameKey), name: NSWindow.didBecomeKeyNotification, object: nil)
         NotificationCenter.default.addObserver(
+            self, selector: #selector(windowResignedKey), name: NSWindow.didResignKeyNotification, object: nil)
+        NotificationCenter.default.addObserver(
             self, selector: #selector(windowClosed), name: NSWindow.willCloseNotification, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(occlusionChanged), name: NSWindow.didChangeOcclusionStateNotification,
+            object: nil)
     }
 
     func register(_ window: NSWindow, surface: MonitorSurface, model: MonitorModel) {
@@ -27,6 +32,7 @@ final class PanelWindowCoordinator: NSObject {
         case .menu: menuWindow = window
         case .notch: return
         }
+        reportVisibility(window)
         if window.isKeyWindow || (surface == .menu && window.isVisible) { _ = activate(surface) }
     }
 
@@ -115,18 +121,43 @@ final class PanelWindowCoordinator: NSObject {
         }
     }
 
+    private func surface(of window: NSWindow) -> MonitorSurface? {
+        if window === mainWindow { return .window }
+        return window === menuWindow ? .menu : nil
+    }
+
+    /// Feeds the scan cadence. A window that is minimised, fully covered or on another Space counts as hidden.
+    private func reportVisibility(_ window: NSWindow) {
+        guard let surface = surface(of: window) else { return }
+        // The menu panel is on screen while it is key, even before its occlusion state catches up.
+        let visible =
+            window.isVisible
+            && (window.occlusionState.contains(.visible) || (surface == .menu && window.isKeyWindow))
+        model?.setSurface(surface, visible: visible)
+    }
+
     @objc private func windowBecameKey(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
+        reportVisibility(window)
         if window === mainWindow { _ = activate(.window) } else if window === menuWindow { _ = activate(.menu) }
     }
 
-    @objc private func windowClosed(_ notification: Notification) {
+    /// The transient menu panel closes when it loses key. Reporting that directly keeps the cadence right even if
+    /// the panel's occlusion change is never posted.
+    @objc private func windowResignedKey(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, window === menuWindow else { return }
+        model?.setSurface(.menu, visible: false)
+    }
+
+    @objc private func occlusionChanged(_ notification: Notification) {
         guard let window = notification.object as? NSWindow else { return }
-        if window === mainWindow {
-            presentation.dismiss(.window)
-        } else if window === menuWindow {
-            presentation.dismiss(.menu)
-        }
+        reportVisibility(window)
+    }
+
+    @objc private func windowClosed(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow, let surface = surface(of: window) else { return }
+        presentation.dismiss(surface)
+        model?.setSurface(surface, visible: false)
     }
 }
 

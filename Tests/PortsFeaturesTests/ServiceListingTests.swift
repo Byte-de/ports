@@ -58,6 +58,20 @@ struct ServiceListingTests {
         #expect(pids(.agents, search: search, showsListeners: true).isEmpty)
     }
 
+    @Test func searchMatchesProjectFolderButNotLaunchdOrBundleFolders() {
+        let services = [
+            service(.server, pid: 1, title: "Vite", directory: "/Users/dev/shop/web"),
+            service(.agent, pid: 2, title: "Codex", directory: "/Applications/Codex.app/Contents/Resources"),
+            service(.agent, pid: 3, title: "Claude Code", directory: "/"),
+        ]
+        func pids(_ search: String) -> [Int32] {
+            ServiceListing.visible(services, filter: .all, search: search, showsListeners: true).map(\.id.pid)
+        }
+        #expect(pids("shop/web") == [1])
+        #expect(pids("/") == [1])
+        #expect(pids("Contents").isEmpty)
+    }
+
     @Test func blankSearchMatchesEverything() {
         #expect(pids(.all, search: "  ", showsListeners: true) == pids(.all, showsListeners: true))
     }

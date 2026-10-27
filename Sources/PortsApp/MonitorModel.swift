@@ -44,6 +44,11 @@ struct PendingAction: Identifiable {
     let service: ServiceRecord
     let action: ProcessAction
 }
+/// A force stop awaiting confirmation. `restartAfter` when it ends a restart that timed out, which then starts.
+struct PendingForceStop {
+    let job: LaunchRecord
+    let restartAfter: Bool
+}
 
 /// Settings folders of earlier app names, newest first: pre-release builds were called Byte Relay, the internal
 /// prototype DevScope. The case label goes to the log.
@@ -69,6 +74,10 @@ final class MonitorModel {
     var hasScanned = false
     var isScanning = false
     var isLaunching = false
+    /// Rows whose start or restart waits for the shell environment.
+    var loadingShellEnvironment: Set<UUID> = []
+    /// The form's start while it waits for the shell environment. Dismissing the form clears it to cancel the start.
+    var pendingFormLaunch: UUID?
     var isMonitoring = true
     var demoMode = false
     var panelError: PanelError?
@@ -79,6 +88,7 @@ final class MonitorModel {
     var dialogUsesMotion = false
     var pendingAction: PendingAction?
     var pendingJobStop: LaunchRecord?
+    var pendingForceStop: PendingForceStop?
     var pendingShare: TunnelTarget?
     var updateStatus: UpdateStatus = .idle
     var showLaunchForm = false
@@ -90,7 +100,11 @@ final class MonitorModel {
     var preferences: AppPreferences
     var histories: [ProcessIdentity: [Double]] = [:]
     var busyIDs: Set<ProcessIdentity> = []
+    /// Slots with a stop, restart or force stop in progress.
     var busyJobs: Set<UUID> = []
+    var restartingJobs: Set<UUID> = []
+    /// Slots whose restart timed out: confirming their force stop starts them again.
+    var restartAfterForce: Set<UUID> = []
     var tunnelRecords: [TunnelRecord] = []
     var sharingBusy: Set<TunnelKey> = []
     var isQuitting = false
@@ -99,6 +113,7 @@ final class MonitorModel {
         client: Bundle.main.bundleURL.appending(path: "Contents/Helpers/cloudflared"),
         runner: Bundle.main.bundleURL.appending(path: "Contents/Helpers/ports-tunnel-runner"))
     @ObservationIgnored var tunnelTask: Task<Void, Never>?
+    @ObservationIgnored var launchObserver: Task<Void, Never>?
     @ObservationIgnored var pendingTunnelCopy: Set<TunnelKey> = []
     @ObservationIgnored private let scanner = ProcessScanner()
     @ObservationIgnored private let controller = ProcessController()
@@ -106,7 +121,13 @@ final class MonitorModel {
     @ObservationIgnored private let repository: PreferencesRepository
     @ObservationIgnored private var persistenceAvailable = true
     @ObservationIgnored private var scanGeneration = 0
+    @ObservationIgnored private lazy var refresher = RefreshCoalescer { [weak self] in await self?.scanOnce() }
     @ObservationIgnored private var loopTask: Task<Void, Never>?
+    @ObservationIgnored private var visibleSurfaces: Set<MonitorSurface> = []
+    @ObservationIgnored private var systemIdle = false
+    @ObservationIgnored private var nextScanWait: Task<Void, Never>?
+    @ObservationIgnored private var scanRequested = false
+    @ObservationIgnored private var systemObservers: [any NSObjectProtocol] = []
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private(set) var revealWindow: (() -> Void)?
     @ObservationIgnored private var windowRevealPending = false
@@ -180,7 +201,8 @@ final class MonitorModel {
     }
 
     var hasBlockingPanelDialog: Bool {
-        showLaunchForm || pendingAction != nil || pendingJobStop != nil || pendingShare != nil
+        showLaunchForm || pendingAction != nil || pendingJobStop != nil || pendingForceStop != nil
+            || pendingShare != nil
     }
     var hasPanelDialog: Bool { hasBlockingPanelDialog || panelError != nil }
 
@@ -200,8 +222,10 @@ final class MonitorModel {
     func dismissPanelDialog() {
         dialogUsesMotion = PanelMotion.isPointerEvent
         showLaunchForm = false
+        pendingFormLaunch = nil
         pendingAction = nil
         pendingJobStop = nil
+        pendingForceStop = nil
         pendingShare = nil
     }
 
@@ -238,17 +262,107 @@ final class MonitorModel {
     func startMonitoring() {
         guard loopTask == nil else { return }
         startTunnelMonitoring()
+        startLaunchObserver()
+        observeSystemActivity()
         loopTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self else { return }
                 if self.isMonitoring && !self.demoMode { await self.refresh() }
-                do { try await Task.sleep(for: .seconds(self.preferences.refreshInterval)) } catch { return }
+                await self.waitForNextScan()
             }
         }
     }
 
+    var scanActivity: ScanActivity {
+        if systemIdle { return .idle }
+        return visibleSurfaces.isEmpty ? .background : .visible
+    }
+
+    private var scanInterval: Duration {
+        ScanCadence.interval(preferred: .seconds(preferences.refreshInterval), activity: scanActivity)
+    }
+
+    /// The window coordinator and the notch report whenever a surface may have appeared or disappeared.
+    func setSurface(_ surface: MonitorSurface, visible: Bool) {
+        let previous = scanActivity
+        let wasVisible = !visibleSurfaces.isEmpty
+        if visible { visibleSurfaces.insert(surface) } else { visibleSurfaces.remove(surface) }
+        if ScanCadence.shouldScanNow(
+            wasVisible: wasVisible, isVisible: !visibleSurfaces.isEmpty, hasScanned: hasScanned,
+            snapshotAge: .seconds(Date().timeIntervalSince(snapshot.scannedAt)),
+            interval: .seconds(preferences.refreshInterval))
+        {
+            wakeScanLoop()
+        }
+        activityChanged(from: previous)
+    }
+
+    private func setSystemIdle(_ idle: Bool) {
+        guard idle != systemIdle else { return }
+        let previous = scanActivity
+        systemIdle = idle
+        activityChanged(from: previous)
+        if !idle { wakeScanLoop() }
+    }
+
+    /// Ends the wait between scans, so the loop scans at once.
+    func wakeScanLoop() {
+        scanRequested = true
+        nextScanWait?.cancel()
+    }
+
+    /// A waiting loop recomputes its deadline, so an appearing surface gets the preferred rate without first sitting
+    /// out a background interval.
+    private func activityChanged(from previous: ScanActivity) {
+        let activity = scanActivity
+        guard activity != previous else { return }
+        let interval = scanInterval
+        PortsLog.scan.debug(
+            "Scan activity \(activity.rawValue, privacy: .public), every \(interval, privacy: .public)")
+        nextScanWait?.cancel()
+    }
+
+    /// Sleeps until the next scan is due at the current cadence, counted from the end of the last scan.
+    private func waitForNextScan() async {
+        let start = ContinuousClock.now
+        // A wake that arrived during the scan that just ran is covered by it.
+        scanRequested = false
+        while !scanRequested && !Task.isCancelled {
+            let deadline = start + scanInterval
+            guard deadline > .now else { return }
+            let wait = Task { _ = try? await Task.sleep(until: deadline, clock: .continuous) }
+            nextScanWait = wait
+            await withTaskCancellationHandler {
+                await wait.value
+            } onCancel: {
+                wait.cancel()
+            }
+        }
+    }
+
+    /// Display sleep, system sleep and a switch to another user stretch the cadence to the idle floor.
+    private func observeSystemActivity() {
+        let center = NSWorkspace.shared.notificationCenter
+        let changes: [(Notification.Name, idle: Bool)] = [
+            (NSWorkspace.screensDidSleepNotification, true), (NSWorkspace.willSleepNotification, true),
+            (NSWorkspace.sessionDidResignActiveNotification, true), (NSWorkspace.screensDidWakeNotification, false),
+            (NSWorkspace.didWakeNotification, false), (NSWorkspace.sessionDidBecomeActiveNotification, false),
+        ]
+        systemObservers = changes.map { name, idle in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.setSystemIdle(idle) }
+            }
+        }
+    }
+
+    /// Joins a running scan instead of being dropped, and returns after a scan that started after the call.
     func refresh() async {
-        guard !isScanning, !demoMode else { return }
+        guard !demoMode else { return }
+        await refresher.request()
+    }
+
+    private func scanOnce() async {
+        guard !demoMode else { return }
         isScanning = true
         let generation = scanGeneration
         defer { isScanning = false }
@@ -256,7 +370,10 @@ final class MonitorModel {
             #if DEBUG
                 // Manual check of the inline failure line: scans fail while this file exists.
                 let failureSwitch = FileManager.default.temporaryDirectory.appending(path: "ports-fail-scans")
-                if FileManager.default.fileExists(atPath: failureSwitch.path) { throw MonitorError.timedOut }
+                if FileManager.default.fileExists(atPath: failureSwitch.path) {
+                    throw MonitorError.scanFailed(
+                        String(localized: "The process list is not available.", comment: "Scan error"))
+                }
             #endif
             let next = try await scanner.scan(customRules: preferences.agentRules)
             guard generation == scanGeneration, !demoMode else { return }
@@ -292,7 +409,7 @@ final class MonitorModel {
             PortsLog.scan.error("Scan failed: \(error.localizedDescription, privacy: .private)")
             if generation == scanGeneration && !demoMode { detectionIssue = error.localizedDescription }
         }
-        if !launches.isEmpty { launches = await launcher.records() }
+        if !launches.isEmpty { await reloadLaunches() }
         if let logJobID { logs = await launcher.output(for: logJobID) }
     }
 
@@ -480,7 +597,7 @@ final class MonitorModel {
         {
             return
         }
-        if let directory = service.process.workingDirectory {
+        if let directory = service.projectDirectory {
             openDirectory(directory, terminal: true)
         }
     }

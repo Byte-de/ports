@@ -62,8 +62,6 @@ struct LocalizationTableTests {
             ),
             (MonitorError.protectedProcess, "This process is protected. Open its app to manage it there."),
             (MonitorError.signalFailed(7), "The action could not be completed (system error %d)."),
-            (MonitorError.timedOut, "The system query took too long. The next scan will try again."),
-            (MonitorError.outputLimit, "The system query exceeded the safe output limit."),
             (ReleaseCheckError.invalidResponse, "The update response could not be verified. Please try again later."),
             (
                 ReleaseCheckError.unavailable,

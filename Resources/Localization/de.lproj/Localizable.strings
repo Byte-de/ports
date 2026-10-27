@@ -1,8 +1,39 @@
 /* German. Keys are the English source text used in code. */
 
 /* MARK: Shared */
+"Cancel" = "Abbrechen";
+"Not responding" = "Reagiert nicht";
+"Quit %@" = "%@ beenden";
+"Stopped" = "Gestoppt";
+"Stopping…" = "Wird gestoppt…";
+"The app is quitting." = "Die App wird gerade beendet.";
 
 /* MARK: Sources/PortsApp/ActionsView.swift */
+"Clear Finished" = "Beendete entfernen";
+"Copy Command" = "Befehl kopieren";
+"Exited" = "Beendet";
+"Failed · exit %d" = "Fehlgeschlagen · Exit %d";
+"Force Stop" = "Sofort beenden";
+"Force Stop…" = "Sofort beenden…";
+"Force stop “%@”?" = "„%@“ sofort beenden?";
+"Loading shell environment…" = "Shell-Umgebung wird geladen…";
+"RUN ONCE" = "EINMALIG GESTARTET";
+"Remove from List" = "Aus Liste entfernen";
+"Restart" = "Neu starten";
+"Restarting…" = "Wird neu gestartet…";
+"Running · %@" = "Läuft · %@";
+"Runs in zsh with your shell's environment variables. Aliases aren't available." = "Läuft in zsh mit den Umgebungsvariablen deiner Shell. Aliase sind nicht verfügbar.";
+"SAVED" = "GESPEICHERT";
+"Show Output" = "Ausgabe anzeigen";
+"Start" = "Starten";
+"Start Again" = "Erneut starten";
+"Start “%@”" = "„%@“ starten";
+"Stop “%@”?" = "„%@“ stoppen?";
+"The service and its subprocesses will be asked to quit." = "Der Dienst und seine Unterprozesse werden zum Beenden aufgefordert.";
+"job.stop" = "Stoppen";
+"job.stopEllipsis" = "Stoppen…";
+"“%@” isn't responding to Stop. Force Stop ends the service and its subprocesses without cleanup; unsaved data may be lost." = "„%@“ reagiert nicht auf Stoppen. Sofort beenden schließt den Dienst und seine Unterprozesse ohne Aufräumen; ungesicherte Daten können verloren gehen.";
+"“%@” isn't responding to Stop. Force Stop ends the service and its subprocesses without cleanup; unsaved data may be lost. It restarts afterwards." = "„%@“ reagiert nicht auf Stoppen. Sofort beenden schließt den Dienst und seine Unterprozesse ohne Aufräumen; ungesicherte Daten können verloren gehen. Danach wird er neu gestartet.";
 
 /* MARK: Sources/PortsApp/ActivityView.swift */
 
@@ -11,6 +42,13 @@
 /* MARK: Sources/PortsApp/DesignSystem.swift */
 
 /* MARK: Sources/PortsApp/LaunchModel.swift */
+"“%@” exited" = "„%@“ beendet";
+"“%@” failed · exit %d" = "„%@“ fehlgeschlagen · Exit %d";
+"“%@” force stopped" = "„%@“ sofort beendet";
+"“%@” isn't responding" = "„%@“ reagiert nicht";
+"“%@” isn't responding and wasn't restarted." = "„%@“ reagiert nicht und wurde nicht neu gestartet.";
+"“%@” restarted" = "„%@“ neu gestartet";
+"“%@” stopped" = "„%@“ gestoppt";
 
 /* MARK: Sources/PortsApp/MonitorModel.swift */
 "Saving is turned off so the unreadable settings file is kept. The README has details." = "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README.";
@@ -44,7 +82,23 @@
 
 /* MARK: Sources/PortsApp/PreferencesView.swift */
 
+/* MARK: Sources/PortsApp/QuitCoordinator.swift */
+"Active shares end as well." = "Aktive Freigaben werden ebenfalls beendet.";
+"Before quitting, the app stops these services. Processes started elsewhere keep running." = "Vor dem Beenden stoppt die App diese Dienste. Extern gestartete Prozesse laufen weiter.";
+"Cancel Quit" = "Beenden abbrechen";
+"Force Quit" = "Sofort beenden";
+"Force quitting services…" = "Dienste werden sofort beendet…";
+"Keep Waiting" = "Weiter warten";
+"Quit Anyway" = "Trotzdem beenden";
+"Some services aren't responding" = "Nicht alle Dienste reagieren";
+"Stop and Quit" = "Stoppen und beenden";
+"Stop launched services?" = "Gestartete Dienste stoppen?";
+"Stopping services…" = "Dienste werden gestoppt…";
+
 /* MARK: Sources/PortsApp/ServiceViews.swift */
+"Current work in “%@” will be interrupted. The process won't restart automatically." = "Die laufende Arbeit in „%@“ wird unterbrochen. Der Prozess startet nicht automatisch neu.";
+"Desktop app" = "Desktop-App";
+"The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
 
 /* MARK: Sources/PortsApp/TunnelModel.swift */
 
@@ -53,13 +107,13 @@
 /* MARK: Sources/PortsApp/UpdateModel.swift */
 
 /* MARK: Sources/PortsApp/WorkspaceViews.swift */
+"No project" = "Ohne Projekt";
 
 /* MARK: Sources/PortsCore/CloudflareTunnel.swift */
 "Only running local HTTP development servers can be shared." = "Nur laufende lokale HTTP-Dev-Server können geteilt werden.";
 "Public sharing requires macOS 15 or later." = "Öffentlich teilen benötigt macOS 15 oder neuer.";
 "Sharing has not stopped yet. Please stop it again." = "Die Freigabe wurde noch nicht beendet. Bitte erneut stoppen.";
 "The Cloudflare client is missing from this installation. Please download and reinstall the app." = "Der Cloudflare-Client fehlt in dieser Installation. Bitte lade die App erneut herunter und installiere sie neu.";
-"The app is quitting." = "Die App wird gerade beendet.";
 "The server or its port is no longer active. Please try again." = "Der Server oder sein Port ist nicht mehr aktiv. Bitte erneut versuchen.";
 
 /* MARK: Sources/PortsCore/CloudflareTunnelManager.swift */
@@ -67,23 +121,29 @@
 "The Cloudflare connection ended. Please try again." = "Die Cloudflare-Verbindung wurde beendet. Bitte erneut versuchen.";
 "The server or port stopped. Sharing was closed." = "Server oder Port beendet. Die Freigabe wurde geschlossen.";
 
-/* MARK: Sources/PortsCore/CommandRunner.swift */
-
 /* MARK: Sources/PortsCore/LaunchConfiguration.swift */
-"Choose an existing project folder with an absolute path." = "Wähle einen vorhandenen Projektordner mit absolutem Pfad.";
-"Please enter a valid command." = "Bitte gib einen gültigen Befehl ein.";
-"Please give the action a name." = "Bitte gib der Aktion einen Namen.";
 "The settings file was created by a newer version." = "Die Einstellungsdatei stammt aus einer neueren Version.";
 
 /* MARK: Sources/PortsCore/LaunchManager.swift */
+"An action for “%@” is already in progress." = "Für „%@“ läuft bereits eine Aktion.";
+"An action with this name already exists." = "Eine Aktion mit diesem Namen gibt es bereits.";
+"Choose an existing project folder with an absolute path." = "Wähle einen vorhandenen Projektordner mit absolutem Pfad.";
+"Enter a valid command." = "Bitte gib einen gültigen Befehl ein.";
+"Give the action a name." = "Bitte gib der Aktion einen Namen.";
+"The app can't safely identify the launched process and sent no signal. Check it in Terminal." = "Die App kann den gestarteten Prozess nicht sicher zuordnen und hat kein Signal gesendet. Prüfe ihn im Terminal.";
+"This service is no longer in the list." = "Dieser Dienst ist nicht mehr in der Liste.";
+"[%@] Couldn't load your shell environment (%@). The command runs with the login environment." = "[%@] Deine Shell-Umgebung konnte nicht geladen werden (%@). Der Befehl läuft mit der Login-Umgebung.";
+"[Older output discarded · 256 KB maximum]" = "[Ältere Ausgabe verworfen · maximal 256 KB]";
+"“%@” couldn't be stopped. Check the process in Activity Monitor." = "„%@“ konnte nicht beendet werden. Prüfe den Prozess in der Aktivitätsanzeige.";
+"“%@” is already running." = "„%@“ läuft bereits.";
+"──── Restarted · %@ ────" = "──── Neustart · %@ ────";
+"──── Started again · %@ ────" = "──── Erneut gestartet · %@ ────";
 
 /* MARK: Sources/PortsCore/ProcessInspector.swift */
 "The action could not be completed (system error %d)." = "Die Aktion konnte nicht ausgeführt werden (Systemfehler %d).";
 "The process has already ended or its identity changed. The list will refresh." = "Der Prozess wurde bereits beendet oder seine Identität hat sich geändert. Die Liste wird aktualisiert.";
 "The process list is changing too quickly. Please scan again." = "Die Prozessliste ändert sich zu schnell. Bitte erneut scannen.";
 "The process list is not available." = "Die Prozessliste ist nicht verfügbar.";
-"The system query exceeded the safe output limit." = "Die Systemabfrage hat das sichere Ausgabelimit überschritten.";
-"The system query took too long. The next scan will try again." = "Die Systemabfrage hat zu lange gedauert. Der nächste Scan versucht es erneut.";
 "This process is protected. Open its app to manage it there." = "Dieser Prozess ist geschützt. Öffne die zugehörige App, um ihn dort zu verwalten.";
 
 /* MARK: Sources/PortsCore/ProcessScanner.swift */
@@ -96,3 +156,10 @@
 /* MARK: Sources/PortsCore/ServiceClassifier.swift */
 "Codex service" = "Codex-Dienst";
 "Static server" = "Statischer Server";
+
+/* MARK: Sources/PortsCore/ShellEnvironment.swift */
+"couldn't start" = "Start fehlgeschlagen";
+"exit code %d" = "Exit-Code %d";
+"no usable output" = "keine verwertbare Ausgabe";
+"timed out after %lld s" = "Zeitüberschreitung nach %lld s";
+"“%@” isn't supported" = "„%@“ wird nicht unterstützt";

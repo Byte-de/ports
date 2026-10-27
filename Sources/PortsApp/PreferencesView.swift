@@ -99,7 +99,7 @@ struct PreferencesView: View {
                     Text(verbatim: "\(AppInfo.name) \(AppInfo.version)")
                         .font(.system(size: 10)).foregroundStyle(DS.muted)
                     Spacer()
-                    Button("Beenden") { NSApp.terminate(nil) }.buttonStyle(QuietButton())
+                    Button("Beenden") { QuitCoordinator.shared.requestQuit() }.buttonStyle(QuietButton())
                 }
             }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }.scrollIndicators(.hidden)

@@ -29,6 +29,11 @@ public struct ReleaseVersion: Comparable, Sendable, Equatable {
 public struct AvailableRelease: Sendable, Equatable {
     public let version: ReleaseVersion
     public let url: URL
+
+    public init(version: ReleaseVersion) {
+        self.version = version
+        url = ReleaseChecker.releaseURL(for: version)
+    }
 }
 
 public enum ReleaseCheckError: LocalizedError, Sendable {
@@ -48,31 +53,66 @@ public enum ReleaseCheckError: LocalizedError, Sendable {
 }
 
 public struct ReleaseChecker: Sendable {
-    public init() {}
+    static let repository = "Byte-de/ports"
+    public static let responseLimit = 1_048_576
+    private static let latestReleaseURL = URL(string: "https://api.github.com/repos/\(repository)/releases/latest")!
+    private let configure: @Sendable (URLSessionConfiguration) -> Void
 
-    /// No polling, installation, account, cookies, or telemetry. Called only by the user.
+    public init(configure: @escaping @Sendable (URLSessionConfiguration) -> Void = { _ in }) {
+        self.configure = configure
+    }
+
+    static func releaseURL(for version: ReleaseVersion) -> URL {
+        URL(string: "https://github.com/\(repository)/releases/tag/v\(version.string)")!
+    }
+
+    /// No installation, account, cookies or telemetry. Runs when the user asks, or weekly after explicit opt-in.
     public func check(currentVersion: String) async throws -> AvailableRelease? {
+        try await check(currentVersion: currentVersion, from: Self.latestReleaseURL)
+    }
+
+    // Tests pass their stub parameters in the endpoint's query.
+    func check(currentVersion: String, from endpoint: URL) async throws -> AvailableRelease? {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
         configuration.timeoutIntervalForRequest = 15
         configuration.timeoutIntervalForResource = 20
-        let session = URLSession(configuration: configuration)
-        defer { session.invalidateAndCancel() }
-        var request = URLRequest(url: URL(string: "https://api.github.com/repos/Byte-de/ports/releases/latest")!)
+        configure(configuration)
+        var request = URLRequest(url: endpoint)
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
         request.setValue("Byte-Ports", forHTTPHeaderField: "User-Agent")
-        let (bytes, response) = try await session.bytes(for: request)
-        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
-            http.url?.scheme == "https", http.url?.host == "api.github.com"
-        else { throw ReleaseCheckError.unavailable }
-        var data = Data()
-        for try await byte in bytes {
-            guard data.count < 1_048_576 else { throw ReleaseCheckError.invalidResponse }
-            data.append(byte)
+        let release: AvailableRelease?
+        do {
+            let data = try await BoundedDownload.fetch(
+                request, configuration: configuration, limit: Self.responseLimit, accept: Self.accepts)
+            release = try Self.parse(data, currentVersion: currentVersion)
+        } catch BoundedDownloadError.rejected {
+            throw ReleaseCheckError.unavailable
+        } catch let error as URLError {
+            PortsLog.update.error("Update check failed: URLError \(error.code.rawValue, privacy: .public)")
+            throw ReleaseCheckError.unavailable
+        } catch BoundedDownloadError.tooLarge, ReleaseCheckError.invalidResponse {
+            PortsLog.update.error("Update check failed: invalid response")
+            throw ReleaseCheckError.invalidResponse
         }
-        return try Self.parse(data, currentVersion: currentVersion)
+        if let release {
+            PortsLog.update.notice("Update available: \(release.version.string, privacy: .public)")
+        } else {
+            PortsLog.update.info("Update check: up to date (\(currentVersion, privacy: .public))")
+        }
+        return release
+    }
+
+    // Redirects are followed, so the final response must still come from the GitHub API over HTTPS.
+    static func accepts(_ response: HTTPURLResponse) -> Bool {
+        guard response.statusCode == 200, response.url?.scheme == "https", response.url?.host == "api.github.com"
+        else {
+            PortsLog.update.error("Update check failed: HTTP \(response.statusCode, privacy: .public)")
+            return false
+        }
+        return true
     }
 
     public static func parse(_ data: Data, currentVersion: String) throws -> AvailableRelease? {
@@ -87,13 +127,12 @@ public struct ReleaseChecker: Sendable {
                 case draft, prerelease
             }
         }
-        guard data.count <= 1_048_576, let current = ReleaseVersion(currentVersion),
+        guard data.count <= responseLimit, let current = ReleaseVersion(currentVersion),
             let response = try? JSONDecoder().decode(Response.self, from: data),
             let version = ReleaseVersion(response.tagName),
             response.tagName == "v\(version.string)", !response.draft, !response.prerelease,
-            response.htmlURL == "https://github.com/Byte-de/ports/releases/tag/v\(version.string)",
-            let url = URL(string: response.htmlURL)
+            response.htmlURL == releaseURL(for: version).absoluteString
         else { throw ReleaseCheckError.invalidResponse }
-        return version > current ? AvailableRelease(version: version, url: url) : nil
+        return version > current ? AvailableRelease(version: version) : nil
     }
 }

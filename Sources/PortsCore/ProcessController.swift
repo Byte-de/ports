@@ -29,6 +29,8 @@ public struct ProcessController: Sendable {
     private let sender: any SignalSending
     private let currentPID: Int32
     private let currentUID: UInt32
+    // Ancestors can only exit, never be added; identities keep a reused PID from inheriting protection.
+    private let protectedAncestors: Set<ProcessIdentity>
 
     public init(
         inspector: any ProcessInspecting = NativeProcessInspector(),
@@ -39,40 +41,71 @@ public struct ProcessController: Sendable {
         self.sender = sender
         self.currentPID = currentPID
         self.currentUID = currentUID
+        var ancestors: Set<ProcessIdentity> = []
+        var parent = inspector.process(pid: currentPID)?.parentPID ?? 1
+        while parent > 1, let record = inspector.process(pid: parent), ancestors.insert(record.identity).inserted {
+            parent = record.parentPID
+        }
+        protectedAncestors = ancestors
     }
 
     public func isControllable(_ process: ProcessRecord) -> Bool {
-        process.identity.pid > 1 && process.userID == currentUID
-            && !protectedPIDs().contains(process.identity.pid)
-            && !process.executable.contains(".app/Contents/")
+        isSignallable(process) && !process.executable.contains(".app/Contents/")
+    }
+
+    public func perform(_ action: ProcessAction, on expected: ProcessRecord) throws {
+        try send(action.signal, labelled: action.rawValue, to: expected, ownedByJob: false)
+    }
+
+    /// Signals a process of a job this app launched. The job tree proves ownership, so unlike `perform`, an executable
+    /// inside an app bundle, such as Electron or a tool from Xcode, may be signalled; every other check still applies.
+    /// SIGTERM continues a paused process so it can handle the signal; SIGKILL needs no SIGCONT.
+    func signalOwnedJobMember(_ signal: Int32, _ expected: ProcessRecord) throws {
+        try send(signal, labelled: signal == SIGKILL ? "kill" : "terminate", to: expected, ownedByJob: true)
+    }
+
+    /// Neither launchd, this app, one of its ancestors, another user's process nor part of macOS.
+    private func isSignallable(_ process: ProcessRecord) -> Bool {
+        process.identity.pid > 1 && process.identity.pid != currentPID && process.userID == currentUID
+            && !protectedAncestors.contains(process.identity)
             && !process.executable.hasPrefix("/System/")
             && !process.executable.hasPrefix("/usr/libexec/")
     }
 
-    public func perform(_ action: ProcessAction, on expected: ProcessRecord) throws {
-        guard isControllable(expected) else { throw MonitorError.protectedProcess }
-        guard let live = inspector.process(pid: expected.identity.pid), live.identity == expected.identity,
+    private func send(_ signal: Int32, labelled label: String, to expected: ProcessRecord, ownedByJob: Bool) throws {
+        let pid = expected.identity.pid
+        func allowed(_ process: ProcessRecord) -> Bool {
+            ownedByJob ? isSignallable(process) : isControllable(process)
+        }
+        guard allowed(expected) else { throw refusal(.protectedProcess, label, pid: pid) }
+        guard let live = inspector.process(pid: pid), live.identity == expected.identity,
             live.executable == expected.executable, live.userID == expected.userID,
             live.state != .exited
-        else { throw MonitorError.processChanged }
-        guard isControllable(live) else { throw MonitorError.protectedProcess }
-        // A stopped process cannot handle SIGTERM until it is continued.
-        if action == .terminate, live.state == .paused {
-            try sender.send(SIGTERM, to: live.identity.pid)
-            if inspector.process(pid: live.identity.pid)?.identity == live.identity {
-                try sender.send(SIGCONT, to: live.identity.pid)
+        else { throw refusal(.processChanged, label, pid: pid) }
+        guard allowed(live) else { throw refusal(.protectedProcess, label, pid: pid) }
+        do {
+            // A stopped process cannot handle SIGTERM until it is continued.
+            if signal == SIGTERM, live.state == .paused {
+                try sender.send(SIGTERM, to: pid)
+                if inspector.process(pid: pid)?.identity == live.identity { try sender.send(SIGCONT, to: pid) }
+            } else {
+                try sender.send(signal, to: pid)
             }
-        } else {
-            try sender.send(action.signal, to: live.identity.pid)
+        } catch MonitorError.signalFailed(let code) {
+            PortsLog.process.error(
+                "Signal \(label, privacy: .public) to pid \(pid, privacy: .public) failed: errno \(code, privacy: .public)"
+            )
+            throw MonitorError.signalFailed(code)
         }
+        PortsLog.process.notice("Sent \(label, privacy: .public) to pid \(pid, privacy: .public)")
     }
 
-    private func protectedPIDs() -> Set<Int32> {
-        var result: Set<Int32> = [0, 1, currentPID]
-        var parent = inspector.process(pid: currentPID)?.parentPID ?? 1
-        while parent > 1, result.insert(parent).inserted {
-            parent = inspector.process(pid: parent)?.parentPID ?? 1
-        }
-        return result
+    /// Logs why an action was refused. The executable stays out of the log; the PID is enough to correlate.
+    private func refusal(_ error: MonitorError, _ label: String, pid: Int32) -> MonitorError {
+        let reason = error == .protectedProcess ? "protected" : "changed"
+        PortsLog.process.info(
+            "Refused \(label, privacy: .public) for pid \(pid, privacy: .public): \(reason, privacy: .public)"
+        )
+        return error
     }
 }

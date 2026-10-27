@@ -4,14 +4,15 @@ import SwiftUI
 struct ProjectsView: View {
     @Bindable var model: MonitorModel
     let services: [ServiceRecord]
-    private var groups: [(key: String, services: [ServiceRecord])] {
-        Dictionary(grouping: services, by: \.projectKey)
+    /// Project folders, favourites first, then one trailing group of services without a project.
+    private var groups: [(key: String?, services: [ServiceRecord])] {
+        let favorites = model.preferences.favoriteProjects
+        return Dictionary(grouping: services, by: \.projectDirectory)
             .map { (key: $0.key, services: $0.value) }
             .sorted {
-                let first = model.preferences.favoriteProjects.contains($0.key)
-                let second = model.preferences.favoriteProjects.contains($1.key)
-                if first != second { return first }
-                return $0.key.localizedStandardCompare($1.key) == .orderedAscending
+                guard let first = $0.key, let second = $1.key else { return $0.key != nil }
+                if favorites.contains(first) != favorites.contains(second) { return favorites.contains(first) }
+                return first.localizedStandardCompare(second) == .orderedAscending
             }
     }
     var body: some View {
@@ -47,22 +48,20 @@ struct ProjectsView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: "folder").foregroundStyle(DS.muted)
                                 VStack(alignment: .leading, spacing: 5) {
-                                    Text(group.services.first?.process.projectName ?? group.key).font(
-                                        .system(size: 13, weight: .medium)
-                                    ).lineLimit(1)
+                                    title(group.key).font(.system(size: 13, weight: .medium)).lineLimit(1)
                                     Text(
                                         "\(group.services.count) \(group.services.count == 1 ? "Prozess" : "Prozesse")"
                                     ).font(.system(size: 11)).foregroundStyle(
                                         DS.muted)
                                 }
                                 Spacer()
-                                IconButton(
-                                    symbol: model.preferences.favoriteProjects.contains(group.key)
-                                        ? "star.fill" : "star", help: "Projekt anheften"
-                                ) {
-                                    model.favorite(group.key)
-                                }
-                                if let directory = group.services.first?.process.workingDirectory {
+                                if let directory = group.key {
+                                    IconButton(
+                                        symbol: model.preferences.favoriteProjects.contains(directory)
+                                            ? "star.fill" : "star", help: "Projekt anheften"
+                                    ) {
+                                        model.favorite(directory)
+                                    }
                                     IconButton(symbol: "arrow.up.forward.square", help: "Projekt öffnen") {
                                         model.openDirectory(directory)
                                     }
@@ -75,5 +74,9 @@ struct ProjectsView: View {
                 }.padding(.horizontal, 16)
             }
         }
+    }
+    private func title(_ directory: String?) -> Text {
+        guard let directory else { return Text("No project") }
+        return Text(verbatim: URL(fileURLWithPath: directory).lastPathComponent)
     }
 }

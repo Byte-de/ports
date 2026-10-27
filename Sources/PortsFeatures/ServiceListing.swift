@@ -44,7 +44,7 @@ public enum ServiceListing {
         guard !query.isEmpty else { return true }
         let fields =
             [
-                service.title, service.process.projectName, service.process.workingDirectory ?? "",
+                service.title, service.process.projectName, service.projectDirectory ?? "",
                 String(service.id.pid),
             ]
             + service.endpoints.map { String($0.port) }

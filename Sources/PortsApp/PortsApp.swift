@@ -54,6 +54,9 @@ struct PortsApp: App {
                     model.revealWindow?()
                 }.keyboardShortcut("3").disabled(model.onboardingSession != nil || model.hasPanelDialog)
             }
+            CommandGroup(replacing: .appTermination) {
+                Button("Quit \(AppInfo.name)") { QuitCoordinator.shared.requestQuit() }.keyboardShortcut("q")
+            }
             CommandGroup(replacing: .help) {
                 Button("Einführung in Byte Ports…") { model.presentOnboarding() }
                     .disabled(model.hasPanelDialog)
@@ -87,6 +90,11 @@ struct MenuBarLabel: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = MonitorModel()
 
+    /// Before any Apple event can ask the app to quit.
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        QuitCoordinator.shared.model = model
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.startMonitoring()
         PanelWindowCoordinator.shared.configureNotch(model: model)
@@ -99,32 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
+    /// Every terminate request, from a menu, an Apple event or a logout, goes through the quit flow.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !model.isQuitting else { return .terminateLater }
-        if model.launches.contains(where: { $0.state == .running }) {
-            let alert = NSAlert()
-            alert.messageText = "Es laufen noch gestartete Dienste."
-            alert.informativeText =
-                "Vor dem Beenden müssen die von Byte Ports gestarteten Dienste gestoppt werden. Extern gestartete Prozesse bleiben unberührt."
-            alert.addButton(withTitle: "Abbrechen")
-            alert.addButton(withTitle: "Dienste stoppen und beenden")
-            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
-        }
-        model.isQuitting = true
-        Task {
-            do {
-                try await model.tunnels.shutdown()
-                let records = await model.launcher.records()
-                for job in records where job.state == .running { try await model.launcher.stop(job.id) }
-                sender.reply(toApplicationShouldTerminate: true)
-            } catch {
-                await model.tunnels.resumeAfterCancelledQuit()
-                model.isQuitting = false
-                model.report(error, as: .quit)
-                model.revealWindow?()
-                sender.reply(toApplicationShouldTerminate: false)
-            }
-        }
-        return .terminateLater
+        QuitCoordinator.shared.shouldTerminate(sender)
     }
 }

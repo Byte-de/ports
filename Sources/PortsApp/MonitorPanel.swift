@@ -52,6 +52,7 @@ struct MonitorPanel: View {
         case panel, launch, share
         case process(UUID)
         case job(UUID)
+        case forceStop(UUID)
     }
     private var dialogIdentity: DialogIdentity {
         guard model.presentationSurface == surface else { return .panel }
@@ -59,6 +60,7 @@ struct MonitorPanel: View {
         if model.pendingShare != nil { return .share }
         if let pending = model.pendingAction { return .process(pending.id) }
         if let job = model.pendingJobStop { return .job(job.id) }
+        if let pending = model.pendingForceStop { return .forceStop(pending.job.id) }
         return .panel
     }
 
@@ -128,6 +130,8 @@ struct MonitorPanel: View {
             StopConfirmation(model: model, pending: pending) { model.dismissPanelDialog() }
         } else if model.presentationSurface == surface, let job = model.pendingJobStop {
             JobStopConfirmation(model: model, job: job)
+        } else if model.presentationSurface == surface, let pending = model.pendingForceStop {
+            ForceStopConfirmation(model: model, pending: pending)
         } else {
             panelContent
         }
@@ -355,7 +359,8 @@ struct MonitorPanel: View {
     }
 
     private func revealSearch() {
-        if model.section == .settings || model.showingLogs { model.navigate(.overview) }
+        // Settings and the Actions tab have no search.
+        if model.section == .settings || model.section == .actions { model.navigate(.overview) }
         model.showingDetails = false
         showingSearch = true
         searchFocused = true

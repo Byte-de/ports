@@ -24,18 +24,31 @@ struct PortsDiagnostics {
             try await tunnelIntegration(app: URL(fileURLWithPath: CommandLine.arguments[index + 1]))
         } else if CommandLine.arguments.contains("--integration") {
             try await integration()
+        } else if CommandLine.arguments.contains("--listener-parity") {
+            try listenerParity()
         } else if let index = CommandLine.arguments.firstIndex(of: "--benchmark") {
             guard CommandLine.arguments.indices.contains(index + 1),
                 let scans = Int(CommandLine.arguments[index + 1]), scans > 0
             else { throw MonitorError.scanFailed("Usage: ports-diagnostics --benchmark <scans>") }
             try await benchmark(scans: scans)
         } else {
-            let snapshot = try await ProcessScanner().scan()
+            // One scanner for both scans, so the warm one reuses the argv cache like the app's scan loop.
+            let scanner = ProcessScanner()
+            let clock = ContinuousClock()
+            var start = clock.now
+            _ = try await scanner.scan()
+            let cold = start.duration(to: clock.now)
+            start = clock.now
+            let snapshot = try await scanner.scan()
+            let warm = start.duration(to: clock.now)
+            // Whole milliseconds: JSONSerialization prints fractions with 17 significant digits.
+            func wholeMilliseconds(_ duration: Duration) -> Int { Int((duration / .milliseconds(1)).rounded()) }
             let counts: [String: Any] = [
                 "processes": snapshot.processCount,
                 "agents": snapshot.services.filter { $0.kind == .agent }.count,
                 "developmentServers": snapshot.services.filter { $0.kind == .server }.count,
                 "tcpListenerProcesses": snapshot.services.filter { !$0.endpoints.isEmpty }.count,
+                "scanMilliseconds": ["cold": wholeMilliseconds(cold), "warm": wholeMilliseconds(warm)],
                 "warning": snapshot.warning as Any? ?? NSNull(),
             ]
             let data = try JSONSerialization.data(withJSONObject: counts, options: [.prettyPrinted, .sortedKeys])
@@ -44,7 +57,7 @@ struct PortsDiagnostics {
     }
 
     /// Repeated scans with one scanner, like the app's scan loop. The first scan only warms
-    /// per-process state and is not reported. Children CPU covers spawned tools such as lsof.
+    /// per-process state and is not reported. Children CPU reveals any tool a scan spawns.
     private static func benchmark(scans: Int) async throws {
         let scanner = ProcessScanner()
         let clock = ContinuousClock()
@@ -104,7 +117,7 @@ struct PortsDiagnostics {
             name: "Byte Ports integration fixture",
             command: "printf 'fixture ready\\n'; exec \(ShellEscaping.quote(executable)) --fixture-server \(port)",
             directory: FileManager.default.currentDirectoryPath)
-        var job = try await launcher.start(configuration)
+        let job = try await launcher.start(configuration)
         var stage = "discovery"
         do {
             var found: ServiceRecord?
@@ -130,7 +143,12 @@ struct PortsDiagnostics {
                 throw MonitorError.scanFailed("Captured output missing")
             }
             stage = "restart"
-            job = try await launcher.restart(job)
+            guard try await launcher.restart(job) == .stopped else {
+                throw MonitorError.scanFailed("Fixture did not stop for the restart")
+            }
+            guard let slot = await launcher.records().first(where: { $0.id == job }), slot.runCount == 2 else {
+                throw MonitorError.scanFailed("Restart did not reuse the job's slot")
+            }
             try await Task.sleep(for: .milliseconds(150))
             let restarted = try await scanner.scan()
             guard
@@ -139,16 +157,58 @@ struct PortsDiagnostics {
                 throw MonitorError.scanFailed("Restart did not create a new listener")
             }
             stage = "stop"
-            try await launcher.stop(job)
+            guard try await launcher.stop(job) == .stopped else {
+                throw MonitorError.scanFailed("Fixture did not stop within the grace period")
+            }
+            guard await launcher.status(for: job) == .stopped else {
+                throw MonitorError.scanFailed("Stopped fixture not reported as stopped")
+            }
             let final = try await scanner.scan()
             guard !final.services.contains(where: { $0.endpoints.contains { $0.port == port } }) else {
                 throw MonitorError.scanFailed("Fixture listener still active")
             }
             print("PASS: live TCP detection, identity, pause, resume, log capture, restart, graceful stop, cleanup")
         } catch {
-            try? await launcher.stop(job)
+            _ = try? await launcher.stop(job)
             throw MonitorError.scanFailed("\(stage): \(error.localizedDescription)")
         }
+    }
+
+    /// Compares native listener discovery with lsof for this user's processes. Sockets can open or close while lsof
+    /// runs, so lsof must lie within the union of a native snapshot before and after it and contain their intersection.
+    private static func listenerParity() throws {
+        let pids = try NativeProcessInspector().processes().map(\.identity.pid)
+        let discovery = NativeListenerDiscovery()
+        let before = Set(try discovery.listeners(of: pids).map(parityKey))
+        let lsof = Process()
+        let pipe = Pipe()
+        lsof.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        lsof.arguments = ["-nP", "-a", "-u", String(getuid()), "-iTCP", "-sTCP:LISTEN", "-Fpn"]
+        lsof.standardOutput = pipe
+        lsof.standardError = FileHandle.nullDevice
+        lsof.standardInput = FileHandle.nullDevice
+        try lsof.run()
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        lsof.waitUntilExit()
+        // lsof uses 1 for a successful search without matching listeners.
+        guard lsof.terminationStatus == 0 || (lsof.terminationStatus == 1 && output.isEmpty) else {
+            throw MonitorError.scanFailed("lsof exited with status \(lsof.terminationStatus)")
+        }
+        let owned = Set(pids)
+        let expected = Set(ListenerParser.parse(output).filter { owned.contains($0.pid) }.map(parityKey))
+        let after = Set(try discovery.listeners(of: pids).map(parityKey))
+        let missing = expected.subtracting(before.union(after)).sorted()
+        let unexpected = before.intersection(after).subtracting(expected).sorted()
+        guard missing.isEmpty, unexpected.isEmpty else {
+            throw MonitorError.scanFailed(
+                "Listener parity: missing natively \(missing), not reported by lsof \(unexpected)")
+        }
+        print("PASS: native TCP listener discovery matches lsof (\(expected.count) listeners)")
+    }
+
+    /// lsof prints an IPv6-only wildcard as "*", like a dual-stack one.
+    private static func parityKey(_ endpoint: ListeningEndpoint) -> String {
+        "\(endpoint.pid) \(endpoint.address == "::" ? "*" : endpoint.address) \(endpoint.port)"
     }
 
     /// Explicit opt-in only: shares a new constant-response fixture, never a user's server or files.
@@ -188,7 +248,7 @@ struct PortsDiagnostics {
                 if record?.phase == .failed { throw MonitorError.scanFailed(record?.message ?? "Tunnel failed") }
                 try await Task.sleep(for: .milliseconds(500))
             }
-            guard let publicURL else { throw MonitorError.timedOut }
+            guard let publicURL else { throw MonitorError.scanFailed("Tunnel did not become ready within 50 s") }
             FileHandle.standardOutput.write(Data("Temporary fixture URL: \(publicURL.absoluteString)\n".utf8))
             let config = URLSessionConfiguration.ephemeral
             config.timeoutIntervalForRequest = 5
@@ -236,7 +296,7 @@ struct PortsDiagnostics {
             )
         } catch {
             try? await manager.shutdown()
-            try? await launcher.stop(job)
+            _ = try? await launcher.stop(job)
             throw error
         }
     }

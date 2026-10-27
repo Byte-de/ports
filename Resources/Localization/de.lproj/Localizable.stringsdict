@@ -43,6 +43,72 @@
 		</dict>
 	</dict>
 
+	<!-- MARK: Sources/PortsApp/QuitCoordinator.swift -->
+	<key>%lld processes didn't respond to Force Quit either. Check them in Activity Monitor. If you quit anyway, they keep running without the app.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@processes@</string>
+		<key>processes</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>Der Prozess reagiert auch auf Sofort beenden nicht. Prüfe ihn in der Aktivitätsanzeige. Beendest du die App trotzdem, läuft er ohne sie weiter.</string>
+			<key>other</key>
+			<string>Die Prozesse reagieren auch auf Sofort beenden nicht. Prüfe sie in der Aktivitätsanzeige. Beendest du die App trotzdem, laufen sie ohne die App weiter.</string>
+		</dict>
+	</dict>
+	<key>%lld services are still running 15 seconds after the stop request: %@. Force Quit ends the processes the app started, without cleanup; unsaved data may be lost.</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%2$@ %1$#@running@ Sofort beenden schließt die von der App gestarteten Prozesse ohne Aufräumen; ungesicherte Daten können verloren gehen.</string>
+		<key>running</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>läuft 15 Sekunden nach der Stopp-Anfrage noch.</string>
+			<key>other</key>
+			<string>laufen 15 Sekunden nach der Stopp-Anfrage noch.</string>
+		</dict>
+	</dict>
+	<key>%lld services couldn't be stopped: %@</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%2$@ %1$#@stopped@</string>
+		<key>stopped</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>konnte nicht beendet werden</string>
+			<key>other</key>
+			<string>konnten nicht beendet werden</string>
+		</dict>
+	</dict>
+	<key>+ %lld more</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@services@</string>
+		<key>services</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>+ %lld weiterer</string>
+			<key>other</key>
+			<string>+ %lld weitere</string>
+		</dict>
+	</dict>
+
 	<!-- MARK: Sources/PortsApp/ServiceViews.swift -->
 
 	<!-- MARK: Sources/PortsApp/TunnelModel.swift -->
@@ -56,8 +122,6 @@
 	<!-- MARK: Sources/PortsCore/CloudflareTunnel.swift -->
 
 	<!-- MARK: Sources/PortsCore/CloudflareTunnelManager.swift -->
-
-	<!-- MARK: Sources/PortsCore/CommandRunner.swift -->
 
 	<!-- MARK: Sources/PortsCore/LaunchConfiguration.swift -->
 

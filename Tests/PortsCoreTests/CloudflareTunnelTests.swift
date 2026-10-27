@@ -44,6 +44,16 @@ struct CloudflareTunnelTests {
         #expect(first.id != reusedPID)
     }
 
+    @Test func dualBoundServerSharesItsPrimaryLoopbackSocket() throws {
+        let service = ServiceRecord(
+            process: ProcessRecord(
+                identity: .init(pid: 123, startSeconds: 12), name: "node", executable: "/usr/bin/node"),
+            kind: .server, framework: "Vite",
+            endpoints: ["::1", "127.0.0.1"].map { ListeningEndpoint(pid: 123, address: $0, port: 5173) })
+        let target = try TunnelTarget(service: service, endpoint: try #require(service.ports.first).primary)
+        #expect(target.id.origin.absoluteString == "http://127.0.0.1:5173")
+    }
+
     @Test(arguments: [
         "http://valid.trycloudflare.com", "https://trycloudflare.com", "https://a.trycloudflare.com.evil.test",
         "https://a.trycloudflare.com@evil.test", "https://user@a.trycloudflare.com", "https://a.trycloudflare.com:444",
@@ -77,6 +87,21 @@ struct CloudflareTunnelTests {
 
     @Test func nativeValidatorRejectsNonexistentProcess() throws {
         #expect(!TunnelOriginValidator().isCurrent(try target()))
+    }
+
+    @Test func nativeValidatorTracksOwnListener() throws {
+        let listener = try bindListener("127.0.0.1")
+        var isOpen = true
+        defer { if isOpen { close(listener.descriptor) } }
+        let process = try #require(NativeProcessInspector().process(pid: getpid()))
+        let endpoint = ListeningEndpoint(pid: getpid(), address: "127.0.0.1", port: listener.port)
+        let target = try TunnelTarget(
+            service: ServiceRecord(process: process, kind: .server, framework: "Vite", endpoints: [endpoint]),
+            endpoint: endpoint)
+        #expect(TunnelOriginValidator().isCurrent(target))
+        close(listener.descriptor)
+        isOpen = false
+        #expect(!TunnelOriginValidator().isCurrent(target))
     }
 
     @Test func duplicateClickSharesOneProcessAndStoppingAllowsAFreshSession() async throws {

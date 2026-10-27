@@ -22,6 +22,7 @@ private final class NotchState {
 final class NotchController: NSObject {
     static let shared = NotchController()
     private var panel: NSPanel?
+    private weak var model: MonitorModel?
     private let state = NotchState()
     private var resize = PanelResizeTransition(size: NotchState.compactSize)
 
@@ -36,6 +37,7 @@ final class NotchController: NSObject {
     }
 
     func update(model: MonitorModel, expanded: Bool, animated: Bool = false) {
+        self.model = model
         guard model.preferences.showNotch, model.onboardingSession == nil else {
             transition(expanded: false, animated: false)
             panel?.orderOut(nil)
@@ -80,7 +82,9 @@ final class NotchController: NSObject {
         position(size: NotchState.compactSize)
     }
 
+    /// Only the expanded panel counts as a visible surface; the compact pill scans at the background cadence.
     private func transition(expanded: Bool, animated: Bool) {
+        model?.setSurface(.notch, visible: expanded)
         let target = expanded ? state.expandedSize : NotchState.compactSize
         let animate = animated && !PanelMotion.reduceMotion && panel?.isVisible == true
         let revision = resize.begin(to: target, animated: animate)

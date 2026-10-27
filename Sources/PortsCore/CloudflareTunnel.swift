@@ -156,14 +156,10 @@ final class CloudflareLogBuffer: @unchecked Sendable {
 struct TunnelOriginValidator: Sendable {
     func isCurrent(_ target: TunnelTarget) -> Bool {
         let inspector = NativeProcessInspector()
-        guard inspector.process(pid: target.id.process.pid)?.identity == target.id.process,
-            let result = try? CommandRunner().run(
-                executable: "/usr/sbin/lsof",
-                arguments: ["-nP", "-a", "-p", String(target.id.process.pid), "-iTCP", "-sTCP:LISTEN", "-Fpn"],
-                timeout: 2, outputLimit: 262_144),
-            ListenerParser.parse(result.output).contains(target.endpoint),
-            inspector.process(pid: target.id.process.pid)?.identity == target.id.process
-        else { return false }
-        return true
+        let pid = target.id.process.pid
+        // The second identity check rejects a PID reused while the sockets were read.
+        return inspector.process(pid: pid)?.identity == target.id.process
+            && NativeListenerDiscovery().listeners(of: pid)?.contains(target.endpoint) == true
+            && inspector.process(pid: pid)?.identity == target.id.process
     }
 }

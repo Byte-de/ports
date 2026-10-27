@@ -41,7 +41,8 @@ public struct ServiceClassifier: Sendable {
 
     public func agent(for process: ProcessRecord) -> AgentProvider? {
         if let desktop = desktopProvider(for: process) { return desktop }
-        let candidates = entryNames(process)
+        let script = entryScript(process)
+        let candidates = entryNames(process, script: script)
         for rule in customRules where candidates.contains(rule.executableName.lowercased()) {
             return AgentProvider(id: rule.id.uuidString, name: rule.name)
         }
@@ -56,13 +57,13 @@ public struct ServiceClassifier: Sendable {
             }
             return entry.provider
         }
-        let script = entryScript(process).lowercased()
+        let scriptPath = script.lowercased()
         let packages: [(String, String)] = [
             ("/@anthropic-ai/claude-code/", "claude"), ("/@openai/codex/", "codex"),
             ("/@google/gemini-cli/", "gemini"), ("/@github/copilot/", "copilot"),
             ("/@qwen-code/qwen-code/", "qwen"), ("/@mariozechner/pi-coding-agent/", "pi"),
         ]
-        for (path, id) in packages where script.contains(path) {
+        for (path, id) in packages where scriptPath.contains(path) {
             return Self.providers.first { $0.provider.id == id }?.provider
         }
         return nil
@@ -88,7 +89,7 @@ public struct ServiceClassifier: Sendable {
     }
 
     public func framework(for process: ProcessRecord) -> (name: String, isDevelopment: Bool) {
-        let names = entryNames(process)
+        let names = entryNames(process, script: entryScript(process))
         let frameworks: [(Set<String>, String)] = [
             (["next", "next-server"], "Next.js"), (["vite"], "Vite"), (["astro"], "Astro"),
             (["wrangler"], "Wrangler"), (["storybook"], "Storybook"), (["nuxt", "nuxi"], "Nuxt"),
@@ -119,12 +120,10 @@ public struct ServiceClassifier: Sendable {
         return (process.name, false)
     }
 
-    private func entryNames(_ process: ProcessRecord) -> Set<String> {
-        let executable = URL(fileURLWithPath: process.executable).lastPathComponent.lowercased()
-        var names: Set<String> = [executable]
-        let script = entryScript(process)
+    private func entryNames(_ process: ProcessRecord, script: String) -> Set<String> {
+        var names: Set<String> = [Self.fileName(process.executable).lowercased()]
         if !script.isEmpty {
-            names.insert(URL(fileURLWithPath: script).deletingPathExtension().lastPathComponent.lowercased())
+            names.insert((Self.fileName(script) as NSString).deletingPathExtension.lowercased())
         }
         // Some frameworks replace argv[0] with a process title.
         if process.name.lowercased().hasPrefix("next-server") { names.insert("next-server") }
@@ -132,7 +131,7 @@ public struct ServiceClassifier: Sendable {
     }
 
     private func entryScript(_ process: ProcessRecord) -> String {
-        let executable = URL(fileURLWithPath: process.executable).lastPathComponent.lowercased()
+        let executable = Self.fileName(process.executable).lowercased()
         let interpreters: Set<String> = [
             "node", "bun", "deno", "ruby", "python", "python3", "python3.11", "python3.12", "python3.13", "python3.14",
         ]
@@ -146,4 +145,8 @@ public struct ServiceClassifier: Sendable {
         if arguments.first == "run" { arguments.removeFirst() }
         return arguments.first(where: { !$0.hasPrefix("-") }) ?? ""
     }
+
+    /// URL(fileURLWithPath:) touches the file system to check for a directory and resolves an empty path against
+    /// the current directory; every scanned process passes through here.
+    private static func fileName(_ path: String) -> String { (path as NSString).lastPathComponent }
 }
