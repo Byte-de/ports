@@ -54,14 +54,23 @@ public struct ProcessController: Sendable {
     }
 
     public func perform(_ action: ProcessAction, on expected: ProcessRecord) throws {
-        try send(action.signal, labelled: action.rawValue, to: expected, ownedByJob: false)
+        try send(action.signal, labelled: action.rawValue, to: expected, allowsAppBundles: false)
+    }
+
+    /// A detected agent the user chose to quit. Like a job member, it may run from inside an app bundle, such as the
+    /// Codex CLI in ChatGPT.app; every other protection still applies.
+    public func isQuittable(_ process: ProcessRecord) -> Bool { isSignallable(process) }
+
+    /// SIGTERM to an agent the user confirmed quitting, continuing it first when it is paused.
+    public func quitAgent(_ expected: ProcessRecord) throws {
+        try send(SIGTERM, labelled: "quit", to: expected, allowsAppBundles: true)
     }
 
     /// Signals a process of a job this app launched. The job tree proves ownership, so unlike `perform`, an executable
     /// inside an app bundle, such as Electron or a tool from Xcode, may be signalled; every other check still applies.
     /// SIGTERM continues a paused process so it can handle the signal; SIGKILL needs no SIGCONT.
     func signalOwnedJobMember(_ signal: Int32, _ expected: ProcessRecord) throws {
-        try send(signal, labelled: signal == SIGKILL ? "kill" : "terminate", to: expected, ownedByJob: true)
+        try send(signal, labelled: signal == SIGKILL ? "kill" : "terminate", to: expected, allowsAppBundles: true)
     }
 
     /// Neither launchd, this app, one of its ancestors, another user's process nor part of macOS.
@@ -72,10 +81,12 @@ public struct ProcessController: Sendable {
             && !process.executable.hasPrefix("/usr/libexec/")
     }
 
-    private func send(_ signal: Int32, labelled label: String, to expected: ProcessRecord, ownedByJob: Bool) throws {
+    private func send(
+        _ signal: Int32, labelled label: String, to expected: ProcessRecord, allowsAppBundles: Bool
+    ) throws {
         let pid = expected.identity.pid
         func allowed(_ process: ProcessRecord) -> Bool {
-            ownedByJob ? isSignallable(process) : isControllable(process)
+            allowsAppBundles ? isSignallable(process) : isControllable(process)
         }
         guard allowed(expected) else { throw refusal(.protectedProcess, label, pid: pid) }
         guard let live = inspector.process(pid: pid), live.identity == expected.identity,

@@ -69,8 +69,7 @@ extension MonitorModel {
         guard sharingBusy.insert(target.id).inserted else { return }
         presentationSurface = surface
         // Counts from the click that starts the share, which comes after consent.
-        pendingShareCopies[target.id] = ShareLinkHandoff(
-            pasteboardChangeCount: NSPasteboard.general.changeCount, clickedAt: .now)
+        pendingShareCopies[target.id] = ShareLinkHandoff(clickedAt: .now)
         Task {
             defer { sharingBusy.remove(target.id) }
             guard !demoMode, !isQuitting, !isSwitchingDemo else {
@@ -129,12 +128,12 @@ extension MonitorModel {
             guard let handoff = pendingShareCopies[record.id] else { continue }
             // Until its start returns, an ended record is the port's previous share.
             if sharingBusy.contains(record.id) && !record.phase.isActive { continue }
-            // Read per record: copying one share's link changes the pasteboard for the next.
-            let decision = handoff.decide(
-                phase: record.phase, hasURL: record.publicURL != nil,
-                pasteboardChangeCount: NSPasteboard.general.changeCount, now: .now)
+            let decision = handoff.decide(phase: record.phase, hasURL: record.publicURL != nil, now: .now)
             guard decision != .wait else { continue }
             pendingShareCopies[record.id] = nil
+            PortsLog.tunnel.info(
+                "Share link handoff for port \(record.id.port, privacy: .public): \(String(describing: decision), privacy: .public)"
+            )
             // A quit or a switch to the demo ends the share anyway.
             guard !isQuitting && !isSwitchingDemo else { continue }
             let message: LocalizedStringResource

@@ -20,11 +20,12 @@ container internals are outside the supported release scope.
   next to each other.
 - Save launch commands, edit them, follow their output live and restart
   managed services.
-- Pause, resume or stop processes with identity and ownership checks.
+- Pause, resume or stop processes with identity and ownership checks, and
+  quit agents: apps such as Claude quit as with ⌘Q.
 - Open one panel from the menu bar: a floating window that remembers its
   position, or optionally the notch panel.
-- Share an HTTP server through a temporary Cloudflare Tunnel; copy its URL and
-  stop sharing directly from the service row.
+- Share an HTTP server through a temporary Cloudflare Tunnel; its link is
+  copied as soon as it is ready, and sharing stops from the service row.
 - Onboarding, keyboard access, Reduce Motion and Reduce Transparency support.
 - Manually check for new releases in Settings.
 

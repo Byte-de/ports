@@ -4,6 +4,8 @@ import PortsCore
 /// What the user tried when an error occurred. It titles the alert, so the message can stay a plain reason.
 enum ErrorContext: String, Sendable {
     case generic, preferencesLoad, preferencesSave, open, start, stop, pause, resume, share, stopSharing, quit
+    /// Quitting a detected agent, unlike `quit`, which is this app.
+    case quitAgent
 
     init(_ action: ProcessAction) {
         switch action {
@@ -25,7 +27,7 @@ enum ErrorContext: String, Sendable {
         case .resume: "Couldn't resume"
         case .share: "Couldn't share"
         case .stopSharing: "Sharing didn't stop"
-        case .quit: "Couldn't quit"
+        case .quit, .quitAgent: "Couldn't quit"
         }
     }
 

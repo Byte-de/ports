@@ -12,6 +12,13 @@ struct ServiceRow: View {
     /// Also the details page's stop button.
     static let stopLabel = LocalizedStringResource(
         "service.stopEllipsis", defaultValue: "Stop…", comment: "Asks to confirm stopping a detected service")
+    static let quitLabel = LocalizedStringResource(
+        "service.quitEllipsis", defaultValue: "Quit…", comment: "Asks to confirm quitting a detected agent")
+
+    /// Agents quit, everything else stops: the label and the symbol of the row's and the details page's control.
+    static func stopControl(for service: ServiceRecord) -> (label: LocalizedStringResource, symbol: String) {
+        service.kind == .agent ? (quitLabel, "power") : (stopLabel, "stop.circle")
+    }
 
     @Bindable var model: MonitorModel
     let service: ServiceRecord
@@ -32,8 +39,8 @@ struct ServiceRow: View {
     private var shareTarget: TunnelTarget? { model.tunnelTarget(service) }
     private var isPaused: Bool { service.process.state == .paused }
 
-    /// An app without a port, such as Claude, has no actions: hover leaves its uptime in place.
-    private var hasActions: Bool { service.primaryEndpoint != nil || model.isControllable(service) }
+    /// A server that can neither be reached nor stopped has no actions: hover leaves its uptime in place.
+    private var hasActions: Bool { service.primaryEndpoint != nil || model.isStoppable(service) }
 
     /// A share being prepared or running stays in view, at the same place as when the actions are revealed.
     private var sharePinned: Bool {
@@ -88,13 +95,14 @@ struct ServiceRow: View {
                         model: model, target: target, surface: surface, focusChanged: { focus(.share, $0) }
                     ).reveal(revealed || sharePinned)
                 }
-                if model.isControllable(service) {
+                if model.isStoppable(service) {
+                    let control = Self.stopControl(for: service)
                     IconButton(
-                        symbol: "stop.circle", help: Self.stopLabel, tint: DS.red, focusChanged: { focus(.stop, $0) }
+                        symbol: control.symbol, help: control.label, tint: DS.red, focusChanged: { focus(.stop, $0) }
                     ) {
                         requestStop()
                     }
-                    .disabled(!model.canControl(service)).reveal(revealed)
+                    .disabled(!model.canStop(service)).reveal(revealed)
                 }
             }
         }
@@ -147,8 +155,8 @@ struct ServiceRow: View {
         if let target = shareTarget, model.canShare(target) {
             Button(shareTitle(target)) { model.share(target, from: surface) }
         }
-        if model.canControl(service) {
-            Button(Self.stopLabel) { requestStop() }
+        if model.canStop(service) {
+            Button(Self.stopControl(for: service).label) { requestStop() }
         }
     }
 
@@ -177,16 +185,19 @@ struct ServiceRow: View {
         if let target = shareTarget {
             Button(shareTitle(target)) { model.share(target, from: surface) }.disabled(!model.canShare(target))
         }
-        if model.isControllable(service) {
+        if model.isStoppable(service) {
             Divider()
-            Button(isPaused ? "Resume" : "Pause") {
-                model.request(isPaused ? .resume : .pause, service: service, from: surface)
-            }.disabled(!model.canControl(service))
+            // An app's own processes are never paused; quitting asks the app itself.
+            if model.isControllable(service) {
+                Button(isPaused ? "Resume" : "Pause") {
+                    model.request(isPaused ? .resume : .pause, service: service, from: surface)
+                }.disabled(!model.canControl(service))
+            }
             Button(role: .destructive) {
                 requestStop()
             } label: {
-                Text(Self.stopLabel)
-            }.disabled(!model.canControl(service))
+                Text(Self.stopControl(for: service).label)
+            }.disabled(!model.canStop(service))
         }
     }
 }
@@ -256,7 +267,7 @@ struct InspectorView: View {
                             .foregroundStyle(DS.muted).textSelection(.enabled).lineLimit(8).lineSpacing(3)
                     }
                     // Protected processes and the demo offer no pause or stop; only apps come forward.
-                    if model.canActivate(service) || model.isControllable(service) {
+                    if model.canActivate(service) || model.isStoppable(service) {
                         HStack(spacing: 8) {
                             if model.canActivate(service) {
                                 Button {
@@ -276,9 +287,12 @@ struct InspectorView: View {
                                         service.process.state == .paused ? "Fortsetzen" : "Pausieren",
                                         systemImage: service.process.state == .paused ? "play" : "pause")
                                 }.buttonStyle(QuietButton()).disabled(!model.canControl(service))
-                                IconButton(symbol: "stop.circle", help: ServiceRow.stopLabel, tint: DS.red) {
+                            }
+                            if model.isStoppable(service) {
+                                let control = ServiceRow.stopControl(for: service)
+                                IconButton(symbol: control.symbol, help: control.label, tint: DS.red) {
                                     model.request(.terminate, service: service, from: surface)
-                                }.disabled(!model.canControl(service))
+                                }.disabled(!model.canStop(service))
                             }
                         }
                     }
@@ -297,7 +311,7 @@ struct StopConfirmation: View {
     let dismiss: () -> Void
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Stop “\(pending.service.title)”?").font(.system(size: 17, weight: .medium))
+            title.font(.system(size: 17, weight: .medium))
             consequence.font(.system(size: 12)).foregroundStyle(DS.muted).lineSpacing(3)
             HStack {
                 Text("PID \(String(pending.service.id.pid))").font(.system(size: 11, design: .monospaced))
@@ -308,20 +322,36 @@ struct StopConfirmation: View {
                     model.perform(pending.action, service: pending.service)
                     dismiss()
                 } label: {
-                    Text(
-                        LocalizedStringResource(
-                            "service.stop", defaultValue: "Stop", comment: "Confirms stopping a detected service"))
+                    Text(confirmLabel)
                 }.buttonStyle(QuietButton(tint: DS.red))
             }
         }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
     }
-    /// Agents lose unfinished work; other processes are only asked to quit.
+    private var isAgent: Bool { pending.service.kind == .agent }
+    private var title: Text {
+        isAgent ? Text("Quit “\(pending.service.title)”?") : Text("Stop “\(pending.service.title)”?")
+    }
+    private var confirmLabel: LocalizedStringResource {
+        isAgent
+            ? LocalizedStringResource(
+                "service.quit", defaultValue: "Quit", comment: "Confirms quitting a detected agent")
+            : LocalizedStringResource(
+                "service.stop", defaultValue: "Stop", comment: "Confirms stopping a detected service")
+    }
+    /// Agents lose unfinished work; an app asks about it itself, and other processes are only asked to quit.
     private var consequence: Text {
         let service = pending.service
-        guard service.kind == .agent else {
+        guard isAgent else {
             return Text("The process will be asked to quit and won't restart automatically.")
         }
+        if service.isDesktopApplication {
+            return Text("“\(service.title)” quits as with ⌘Q and asks about unsaved work if needed.")
+        }
         let project = service.projectDirectory == nil ? service.title : service.process.projectName
+        // A CLI that ships inside an app, such as Codex in ChatGPT, may be started again by that app.
+        if let host = service.process.hostApplicationName {
+            return Text("Current work in “\(project)” will be interrupted. \(host) may start it again.")
+        }
         return Text("Current work in “\(project)” will be interrupted. The process won't restart automatically.")
     }
 }

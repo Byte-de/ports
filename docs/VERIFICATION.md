@@ -102,6 +102,15 @@ leave it out of averages. App traces are recorded with the release checks.
 
 Added with the changes they cover; the release checklist takes them over.
 
+- Share link: the first and every later share copies its link as soon as it
+  is ready, toast “Share link copied”, also when something else was copied in
+  between; only a link that comes up more than 60 s after the click (after a
+  sleep) is offered in its row instead.
+- Quit agents: every agent row reveals a red power button (“Quit…”), also for
+  apps such as Claude and CLIs inside app bundles. The confirmation says that an
+  app quits as with ⌘Q, or that the host app (such as ChatGPT) may start its CLI
+  again. Claude receives a normal quit request; a CLI agent receives SIGTERM. A
+  paused CLI agent quits too. Apps still offer no pause.
 - Sharing indicator: the menu bar icon turns into a globe within 0.5 s of a
   share starting and returns to the port glyph once the last share has stopped.
   VoiceOver reads “Byte Ports – public share active, <count>”, otherwise

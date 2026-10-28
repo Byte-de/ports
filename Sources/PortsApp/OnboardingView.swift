@@ -122,13 +122,9 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         VStack(spacing: 22) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 22).fill(DS.accent.gradient)
-                Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 76, height: 76)
-                Circle().frame(width: 9, height: 9)
-            }
-            .foregroundStyle(DS.background).frame(width: 82, height: 82)
-            .shadow(color: .black.opacity(0.2), radius: 12, y: 6).accessibilityHidden(true)
+            // The icon already is the blue squircle with the mark, so it needs no tile of its own.
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 88, height: 88)
+                .accessibilityHidden(true)
             VStack(spacing: 10) {
                 Text("Willkommen bei Byte Ports").font(.system(size: 30, weight: .semibold)).tracking(-0.8)
                 Text("Deine Agenten und Dev-Server im Blick.")
@@ -139,7 +135,7 @@ struct OnboardingView: View {
 
     private var preview: some View {
         VStack(spacing: 18) {
-            heading("Ein Blick genügt.", detail: "Agenten und Server erscheinen automatisch im Panel.")
+            heading("Everything at a glance.", detail: "Agenten und Server erscheinen automatisch im Panel.")
             IntroductionPreview()
         }.padding(.horizontal, 32)
     }

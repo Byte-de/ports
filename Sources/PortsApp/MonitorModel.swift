@@ -561,8 +561,25 @@ final class MonitorModel {
         isControllable(service) && !busyIDs.contains(service.id)
     }
 
+    /// Agents can be quit even where nothing else may be controlled: an app such as Claude, or a CLI that ships inside
+    /// an app bundle. Every other service stops only when it is controllable.
+    func isStoppable(_ service: ServiceRecord) -> Bool {
+        guard !demoMode else { return false }
+        return service.kind == .agent
+            ? controller.isQuittable(service.process) : controller.isControllable(service.process)
+    }
+
+    /// Stoppable and not waiting for an earlier pause, resume or stop.
+    func canStop(_ service: ServiceRecord) -> Bool {
+        isStoppable(service) && !busyIDs.contains(service.id)
+    }
+
+    private func canRequest(_ action: ProcessAction, _ service: ServiceRecord) -> Bool {
+        action == .terminate ? canStop(service) : canControl(service)
+    }
+
     func request(_ action: ProcessAction, service: ServiceRecord, from surface: MonitorSurface = .window) {
-        guard canControl(service), !hasPanelDialog else { return }
+        guard canRequest(action, service), !hasPanelDialog else { return }
         presentationSurface = surface
         if action == .terminate {
             dialogUsesMotion = PanelMotion.isPointerEvent
@@ -573,7 +590,8 @@ final class MonitorModel {
     }
 
     func perform(_ action: ProcessAction, service: ServiceRecord) {
-        guard canControl(service) else { return }
+        guard canRequest(action, service) else { return }
+        if action == .terminate && service.kind == .agent { return quit(service) }
         busyIDs.insert(service.id)
         let controller = controller
         Task {
@@ -600,6 +618,34 @@ final class MonitorModel {
                 await refresh()
             } catch {
                 report(error, as: ErrorContext(action))
+                await refresh()
+            }
+        }
+    }
+
+    /// An app quits as with ⌘Q and may ask about unsaved work first; any other agent gets SIGTERM.
+    private func quit(_ service: ServiceRecord) {
+        busyIDs.insert(service.id)
+        let controller = controller
+        Task {
+            defer { busyIDs.remove(service.id) }
+            do {
+                if service.isDesktopApplication, let app = NSRunningApplication(processIdentifier: service.id.pid),
+                    app.executableURL?.path == service.process.executable
+                {
+                    guard app.terminate() else {
+                        report("\(service.title) didn't accept the request to quit.", as: .quitAgent)
+                        return
+                    }
+                    PortsLog.process.notice("Asked app pid \(service.id.pid, privacy: .public) to quit")
+                } else {
+                    try await Task.detached { try controller.quitAgent(service.process) }.value
+                }
+                record("\(service.title): quit requested", detail: "PID \(service.id.pid)", symbol: "checkmark.circle")
+                notify("\(service.title) · quit requested")
+                await refresh()
+            } catch {
+                report(error, as: .quitAgent)
                 await refresh()
             }
         }

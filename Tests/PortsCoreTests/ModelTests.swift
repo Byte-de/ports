@@ -60,6 +60,20 @@ struct ModelTests {
         #expect(site.projectName == "site")
     }
 
+    @Test func hostApplicationIsTheOutermostAppBundle() {
+        func host(_ executable: String) -> String? {
+            ProcessRecord(identity: .init(pid: 9, startSeconds: 100), name: "x", executable: executable)
+                .hostApplicationName
+        }
+        #expect(
+            host("/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+                == "ChatGPT")
+        #expect(host("/Applications/Claude.app/Contents/MacOS/Claude") == "Claude")
+        #expect(host("/opt/homebrew/bin/codex") == nil)
+        // A folder named like an app is no bundle without its Contents.
+        #expect(host("/Users/a/dev/site.app/node_modules/.bin/vite") == nil)
+    }
+
     @Test func desktopAppHasNoProject() {
         let process = record(.agent, pid: 1, title: "Codex", directory: "/tmp/project").process
         #expect(ServiceRecord(process: process, kind: .agent, framework: "Codex").projectDirectory == "/tmp/project")

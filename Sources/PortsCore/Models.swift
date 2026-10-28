@@ -61,6 +61,17 @@ public struct ProcessRecord: Sendable, Equatable {
     public var command: String {
         (arguments.isEmpty ? [executable] : arguments).map(ShellEscaping.quote).joined(separator: " ")
     }
+
+    /// The outermost app the executable ships in, such as ChatGPT for the Codex CLI inside ChatGPT.app.
+    public var hostApplicationName: String? {
+        let components = executable.split(separator: "/")
+        guard
+            let bundle = zip(components, components.dropFirst()).first(where: {
+                $0.hasSuffix(".app") && $1 == "Contents"
+            })?.0
+        else { return nil }
+        return String(bundle.dropLast(".app".count))
+    }
 }
 
 /// A working directory names a project only when a person chose it: launchd starts apps in '/', helpers run inside

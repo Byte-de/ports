@@ -170,6 +170,39 @@ struct ProcessControllerTests {
         #expect(spy.signals.isEmpty)
     }
 
+    @Test func agentQuitMaySignalAppBundleExecutable() throws {
+        let target = process("/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+        let paused = process("/Applications/Claude.app/Contents/MacOS/Claude", pid: 43, state: .paused)
+        let spy = SignalSpy()
+        let controller = ProcessController(
+            inspector: FixtureInspector(records: [target, paused]), sender: spy, currentPID: 999, currentUID: 501)
+        #expect(!controller.isControllable(target))
+        #expect(controller.isQuittable(target))
+        try controller.quitAgent(target)
+        try controller.quitAgent(paused)
+        #expect(spy.signals == [SIGTERM, SIGTERM, SIGCONT])
+    }
+
+    @Test func agentQuitStillRefusesSystemOtherUserSelfAndReusedPID() {
+        let parent = process("/bin/zsh", pid: 50)
+        let own = process("/tmp/Byte Ports", pid: 999, parent: 50)
+        let protected = [
+            parent, own, process("/bin/launchd", pid: 1), process("/tmp/codex", uid: 0), process("/System/test"),
+            process("/usr/libexec/test"),
+        ]
+        let reused = process("/usr/bin/codex", pid: 60, microseconds: 1)
+        let spy = SignalSpy()
+        let controller = ProcessController(
+            inspector: FixtureInspector(records: [own, parent, process("/usr/bin/codex", pid: 60, microseconds: 2)]),
+            sender: spy, currentPID: 999, currentUID: 501)
+        for target in protected {
+            #expect(!controller.isQuittable(target))
+            #expect(throws: MonitorError.protectedProcess) { try controller.quitAgent(target) }
+        }
+        #expect(throws: MonitorError.processChanged) { try controller.quitAgent(reused) }
+        #expect(spy.signals.isEmpty)
+    }
+
     @Test func ownedKillOnPausedSendsOnlyKill() throws {
         let target = process("/bin/sleep", state: .paused)
         let spy = SignalSpy()

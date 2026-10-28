@@ -85,11 +85,14 @@
 
 /* MARK: Sources/PortsApp/MonitorModel.swift */
 "%@ detected" = "%@ erkannt";
+"%@ didn't accept the request to quit." = "%@ hat das Beenden abgelehnt.";
 "%@ is no longer active" = "%@ nicht mehr aktiv";
 "%@ · paused" = "%@ · pausiert";
+"%@ · quit requested" = "%@ · Beenden angefordert";
 "%@ · resumed" = "%@ · fortgesetzt";
 "%@ · stop requested" = "%@ · Stoppen angefordert";
 "%@: paused" = "%@: pausiert";
+"%@: quit requested" = "%@: Beenden angefordert";
 "%@: resumed" = "%@: fortgesetzt";
 "%@: stop requested" = "%@: Stoppen angefordert";
 "Saving is turned off so the unreadable settings file is kept. The README has details." = "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README.";
@@ -127,6 +130,7 @@
 "Open %@, public share active" = "%@ öffnen, öffentliche Freigabe aktiv";
 
 /* MARK: Sources/PortsApp/OnboardingView.swift */
+"Everything at a glance." = "Alles auf einen Blick.";
 "Use the notch panel" = "Notch-Panel verwenden";
 
 /* MARK: Sources/PortsApp/PanelError.swift */
@@ -169,6 +173,7 @@
 "Copy Address" = "Adresse kopieren";
 "Copy Launch Command" = "Startbefehl kopieren";
 "Copy Share Link" = "Freigabelink kopieren";
+"Current work in “%@” will be interrupted. %@ may start it again." = "Die laufende Arbeit in „%@“ wird unterbrochen. %@ startet den Prozess eventuell neu.";
 "Current work in “%@” will be interrupted. The process won't restart automatically." = "Die laufende Arbeit in „%@“ wird unterbrochen. Der Prozess startet nicht automatisch neu.";
 "Desktop app" = "Desktop-App";
 "Details" = "Details";
@@ -178,6 +183,7 @@
 "Open in Browser" = "Im Browser öffnen";
 "PID %@" = "PID %@";
 "Pause" = "Pausieren";
+"Quit “%@”?" = "„%@“ beenden?";
 "Service no longer running" = "Dienst nicht mehr aktiv";
 "Share Publicly" = "Öffentlich teilen";
 "Show details" = "Details anzeigen";
@@ -185,8 +191,11 @@
 "The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
 "URL copied" = "URL kopiert";
 "no project" = "ohne Projekt";
+"service.quit" = "Beenden";
+"service.quitEllipsis" = "Beenden…";
 "service.stop" = "Stoppen";
 "service.stopEllipsis" = "Stoppen…";
+"“%@” quits as with ⌘Q and asks about unsaved work if needed." = "„%@“ wird wie mit ⌘Q beendet und fragt bei Bedarf nach ungesicherter Arbeit.";
 
 /* MARK: Sources/PortsApp/ServicesPage.swift */
 "New services appear once detection resumes." = "Neue Dienste erscheinen, sobald die Erkennung wieder läuft.";

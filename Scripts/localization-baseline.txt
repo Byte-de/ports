@@ -33,7 +33,6 @@ Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverände
 ERKENNUNG
 Eigene Agenten
 Ein Befehl. Ein Klick.
-Ein Blick genügt.
 Ein Teil der Listener ist gerade nicht lesbar. Details findest du im Panel.
 Ein kompaktes Fenster.\nFrei auf dem Bildschirm platzierbar.
 Einführung abschließen und bisherige Einstellungen beibehalten
