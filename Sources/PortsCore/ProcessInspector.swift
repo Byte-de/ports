@@ -108,7 +108,7 @@ public struct NativeProcessInspector: ProcessInspecting {
         }
         throw MonitorError.scanFailed(
             String(
-                localized: "The process list is changing too quickly. Please scan again.",
+                localized: "The process list is changing too quickly.",
                 comment: "Scan error when processes appear faster than they can be listed"))
     }
 

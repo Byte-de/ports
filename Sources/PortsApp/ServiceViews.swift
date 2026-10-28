@@ -236,12 +236,12 @@ struct InspectorView: View {
                     }.font(.system(size: 12, design: .monospaced)).monospacedDigit()
                     if let directory = service.projectDirectory {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("PROJEKTORDNER").overline()
+                            Text("PROJECT FOLDER").overline()
                             HStack(spacing: 8) {
                                 Text(Format.path(directory)).font(.system(size: 11, design: .monospaced))
                                     .foregroundStyle(DS.muted).textSelection(.enabled).lineLimit(3)
                                 Spacer()
-                                IconButton(symbol: "folder", help: "Im Finder öffnen") {
+                                IconButton(symbol: "folder", help: "Show in Finder") {
                                     model.openDirectory(directory)
                                 }
                                 .disabled(model.demoMode)
@@ -257,9 +257,9 @@ struct InspectorView: View {
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
-                            Text("STARTBEFEHL").overline()
+                            Text("LAUNCH COMMAND").overline()
                             Spacer()
-                            IconButton(symbol: "doc.on.doc", help: "Startbefehl kopieren") {
+                            IconButton(symbol: "doc.on.doc", help: "Copy Launch Command") {
                                 model.copy(service.process.command)
                             }
                         }
@@ -293,7 +293,7 @@ struct InspectorView: View {
                                         from: surface)
                                 } label: {
                                     Label(
-                                        service.process.state == .paused ? "Fortsetzen" : "Pausieren",
+                                        service.process.state == .paused ? "Resume" : "Pause",
                                         systemImage: service.process.state == .paused ? "play" : "pause")
                                 }.buttonStyle(QuietButton()).disabled(!model.canControl(service))
                             }

@@ -43,7 +43,7 @@ language falls back to English.
    and framework names, commands, paths, ports, PIDs or URLs.
 9. Context-dependent short labels use an explicit key with an English default value, because one key has exactly one
    translation and comments never tell two uses apart. This applies to **Stop, Open, Quit, Running, Paused and
-   Close**:
+   Close**, also with a trailing …:
 
    ```swift
    Button(LocalizedStringResource("job.stop", defaultValue: "Stop", comment: "Stops a launched action")) { stop() }
@@ -54,7 +54,7 @@ language falls back to English.
    paths, such as `job.stop` or `quitPanel.forceQuit`. The check reads the English text from the default value.
 
 German uses the informal „du“, „…“ quotes and the … ellipsis. English uses “…” quotes and ends commands that open a
-dialog with ….
+dialog with …. English contractions use the straight apostrophe (isn't), German elisions ’ (geht’s).
 
 ## Table layout
 
@@ -132,19 +132,16 @@ positions:
 `Scripts/check.sh` runs the checker's self-test and then `Scripts/check-localization.sh`, so CI and `release.sh`
 enforce it. The script builds `BytePorts` from scratch in `$PORTS_BUILD_DIR/localization` with
 `-emit-localized-strings`, because the compiler emits keys only for files it recompiles. It then runs
-`Scripts/check-localization.py`, which compares the extracted keys with the tables. Extra arguments are passed on:
-
-- `--report` prints a Markdown table of every key with its German text, location and status, for copy review.
-- `--strict` forbids the baseline and German text in Swift literals. Strict mode is switched on once the legacy text
-  is converted.
-- `--write-baseline` creates the baseline. It refuses to overwrite an existing one.
+`Scripts/check-localization.py`, which compares the extracted keys with the tables. The check is always strict: it
+allows no baseline and no German text in Swift literals, so every key needs its German entry. Extra arguments are
+passed on, such as `--report` for the [copy review](#copy-review).
 
 | Rule | Fails when |
 | --- | --- |
 | E1 | A Swift file in `Sources/PortsApp`, `PortsCore` or `PortsFeatures` has no `.stringsdata`: the scan is stale, or two modules share a file name. |
 | E2 | Code uses a table other than `Localizable`, or a `.lproj` folder holds another non-hidden file. |
-| E3 | An extracted key with letters, outside the baseline, has no German entry. The message suggests a renamed entry. |
-| E4 | A key outside the baseline contains German (`ä ö ü Ä Ö Ü ß „`). The English “ is allowed. |
+| E3 | An extracted key with letters has no German entry. The message suggests a renamed entry. |
+| E4 | A key or its default value contains German (`ä ö ü Ä Ö Ü ß „`). The English “ is allowed. |
 | E5 | A German or plural entry is not used in code. |
 | E6 | `en.lproj/Localizable.strings` exists. |
 | E7 | The stringsdicts differ in keys, or a rule lacks `NSStringPluralRuleType`, a value type, an `other` form or one variable per argument. |
@@ -152,17 +149,28 @@ enforce it. The script builds `BytePorts` from scratch in `$PORTS_BUILD_DIR/loca
 | E9 | A key appears twice in a table. plutil silently keeps the last one. |
 | E10 | plutil cannot read a table, for example because a semicolon is missing. |
 | E11 | A literal with letters goes straight into a `String` sink that the compiler cannot see: `errorMessage =`, `messageText =`, `informativeText =`, `addButton(withTitle:`, `.scanFailed(`, `.launchFailed(`, `.failed(`, `requestStop(message:`, `.message =`, `.title =`, `.prompt =`, `.toolTip =`, `.placeholderString =`, `report(` or `accessibilityDescription:`. Extracted literals pass. |
-| E12 | A baseline entry is stale, already translated, duplicated or out of order. In strict mode, the baseline exists at all. |
+| E12 | `Scripts/localization-baseline.txt` exists. |
 | E13 | An `*UsageDescription` key in `Info.plist` lacks an entry in `de.lproj` or `en.lproj/InfoPlist.strings`. |
-| E14 | Strict mode only: a Swift string literal contains German. |
+| E14 | A string literal in `Sources/PortsApp`, `PortsCore` or `PortsFeatures` contains German (`ä ö ü Ä Ö Ü ß „`), log text included. Comments are not checked. |
 | E16 | In PortsCore or PortsFeatures, `errorDescription` or `failureReason` returns a literal with letters that is not wrapped in `String(localized:)`. |
 
-## Baseline
+## No baseline
 
-`Scripts/localization-baseline.txt` lists the legacy German text that existed when the check was introduced. It has
-one key per line, sorted, with a line break written as `\n` and a backslash as `\\`. Entries may only be removed:
-when you convert a text, delete its line in the same commit. The check reports entries that are stale or already
-translated. Never add entries. Rebase onto changes to the baseline rather than merging them.
+All legacy German copy is converted, and the baseline that tolerated it is deleted. Never recreate
+`Scripts/localization-baseline.txt`: the check fails while it exists and never reads it.
+
+## Copy review
+
+Before a release, export the review table: the maintainer reviews the German, a native-level speaker the English.
+
+```sh
+Scripts/check-localization.sh --report > /tmp/ports-copy-review.md
+```
+
+The table lists every key with letters, its English text when the key is explicit, the German text (each plural form
+for stringsdict keys) and the first location. The note column says `identical` when both languages match, which is
+right for terms such as OK, Details or Demo but worth a second look elsewhere. Apply review fixes like any copy change:
+English in code, German in the owning section, and the glossary below in the same commit.
 
 ## Testing
 
@@ -176,7 +184,8 @@ translated. Never add entries. Rebase onto changes to the baseline rather than m
   /tmp/BytePorts.app/Contents/MacOS/BytePorts -AppleLanguages '(de)'
   ```
 
-  `(de)`, `(de-AT)`, `(de-CH)` and `(fr, de)` show German. `(en)` and `(fr)` show English.
+  `(de)`, `(de-AT)`, `(de-CH)` and `(fr, de)` show German. `(en)` and `(fr)` show English. Swiss German uses the
+  German table as it is. `LocalizationTableTests.languageMatrix` checks the same matrix against `Info.plist`.
 
 ## Glossary
 
@@ -185,8 +194,11 @@ Use these terms in both languages. English UI copy uses US spelling.
 | English | German | Note |
 | --- | --- | --- |
 | Service | Dienst | anything Byte Ports detects; not „Prozess“ or „Übersicht“ |
+| Servers · Agents · Actions | Server · Agenten · Aktionen | the three tabs, ⌘1 to ⌘3 |
 | Server | Server | not „Dev-Server“ as a tab name |
 | Agent | Agent | not „AI-Agenten“ |
+| Custom agents | Eigene Agenten | agent rules in Settings |
+| Desktop app | Desktop-App | a service that is an app bundle |
 | TCP listener | TCP-Listener | |
 | Project | Projekt | |
 | No project | Ohne Projekt | |
@@ -198,9 +210,12 @@ Use these terms in both languages. English UI copy uses US spelling.
 | Detection | Erkennung | not „Scan“ |
 | Detecting services… | Dienste werden erkannt… | before the first detection |
 | Pause detection / Resume detection | Erkennung pausieren / Erkennung fortsetzen | not „Scan pausieren“ |
-| Paused | Pausiert | explicit key |
-| Running | Läuft | explicit key |
-| Stop | Stoppen | explicit key; services and actions |
+| Paused | Pausiert | explicit keys `status.paused`, `detection.paused` |
+| Running | Läuft | explicit key `status.running` |
+| Stop / Stop… | Stoppen / Stoppen… | explicit keys `job.stop`, `service.stop`, `job.stopEllipsis`, `service.stopEllipsis` |
+| Quit / Quit… | Beenden / Beenden… | explicit keys `settings.quit` for the app, `service.quit`, `service.quitEllipsis` for agents |
+| Close | Schließen | explicit key `launchForm.close` |
+| Not responding | Reagiert nicht | a stop that ran out of time |
 | Stop requested | Stoppen angefordert | activity |
 | Force Stop | Sofort beenden | rows |
 | Force Quit | Sofort beenden | quit panel |
@@ -210,6 +225,7 @@ Use these terms in both languages. English UI copy uses US spelling.
 | Resume | Fortsetzen | |
 | Restart | Neu starten | |
 | Share publicly | Öffentlich teilen | |
+| Public share | Öffentliche Freigabe | “%@ – public share active” / „%@ – öffentliche Freigabe aktiv“ |
 | Stop sharing | Freigabe beenden | |
 | Share link | Freigabelink | never “Tunnel” in the UI |
 | Details | Details | |
@@ -217,16 +233,24 @@ Use these terms in both languages. English UI copy uses US spelling.
 | Activity | Aktivität | |
 | Settings | Einstellungen | |
 | Introduction | Einführung | |
-| Notch panel | Notch-Panel | |
+| Window | Fenster | the floating panel |
+| Notch panel | Notch-Panel | replaces the window, never in addition to it |
+| Open at login | Bei der Anmeldung öffnen | |
+| Keyboard shortcut | Tastenkürzel | |
+| Terminal app | Terminal-App | |
+| Check for updates weekly | Wöchentlich nach Updates suchen | |
+| Live data / Demo | Live-Daten / Demo | the compact notch's accessibility value uses the explicit key `notch.demo` |
+| Everything at a glance. | Alles auf einen Blick. | onboarding heading; never „Ein Blick genügt“ |
+| Activity Monitor, System Settings, Login Items | Aktivitätsanzeige, Systemeinstellungen, Anmeldeobjekte | macOS names |
 
 “Process” and „Prozess“ name only the operating-system process: its PID, or what a stop does to it. Everything the
-lists show is a service. „Beenden“ is for quitting the app, ending a share („Freigabe beenden“), the Exited state,
-Force Stop and what a stop asks the process to do („zum Beenden aufgefordert“). Stopping a service or an action is
-„Stoppen“.
+lists show is a service. „Beenden“ is for quitting the app or an agent, ending a share („Freigabe beenden“), the
+Exited state, Force Stop and what a stop asks the process to do („zum Beenden aufgefordert“). Stopping a service or an
+action is „Stoppen“.
 
 Activity entries start with the service's name: “%@ detected” / „%@ erkannt“, “%@ is no longer active” /
 „%@ nicht mehr aktiv“, “%@: paused” / „%@: pausiert“, “%@: resumed” / „%@: fortgesetzt“ and “%@: stop requested” /
 „%@: Stoppen angefordert“.
 
-Do not use: Übersicht, AI-Agenten, Dev-Server (as a tab name), Startaktion, Scan pausieren, Projekt anheften,
-PID kopieren.
+Do not use: Übersicht, AI-Agenten, Dev-Server (as a tab name), Startaktion, Scan or scannen, Scan pausieren,
+Projekt anheften, PID kopieren, Ein Blick genügt.

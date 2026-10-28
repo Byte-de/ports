@@ -20,8 +20,7 @@ struct ShareServerButton: View {
             model.share(target, from: surface)
         }
         .disabled(!model.canShare(target))
-        .accessibilityHint(
-            "Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.")
+        .accessibilityHint("Creates a public Cloudflare link. Anyone with the link can reach this server.")
     }
 }
 
@@ -79,7 +78,7 @@ struct PublicShareConfirmation: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Label("Server öffentlich teilen?", systemImage: "globe")
+            Label("Share this server publicly?", systemImage: "globe")
                 .font(.system(size: 17, weight: .medium))
             Text(
                 "Anyone with the link can reach this server through Cloudflare, without a password. Sharing ends when you stop it or quit the app."
@@ -89,9 +88,9 @@ struct PublicShareConfirmation: View {
                 Text("Port \(String(target.endpoint.port))").font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(DS.accent)
                 Spacer()
-                Button("Abbrechen") { model.dismissPanelDialog() }
+                Button("Cancel") { model.dismissPanelDialog() }
                     .buttonStyle(QuietButton()).keyboardShortcut(.cancelAction)
-                Button("Öffentlich teilen") { model.confirmPublicSharing() }
+                Button("Share Publicly") { model.confirmPublicSharing() }
                     .buttonStyle(AccentButton())
             }
         }.padding(24).frame(width: DS.panelWidth).background(PanelGlass())
@@ -110,7 +109,7 @@ struct TunnelStatusRow: View {
 
     private var detail: Text {
         if let message = record.message { return Text(verbatim: message) }
-        return Text("Port \(String(record.target.endpoint.port)) · Abbrechen jederzeit möglich")
+        return Text("Port \(String(record.target.endpoint.port)) · cancel anytime")
     }
     var body: some View {
         HStack(spacing: 8) {
@@ -131,12 +130,12 @@ struct TunnelStatusRow: View {
                     .contentTransition(.opacity)
                 if let url = record.publicURL, record.phase == .ready {
                     Button {
-                        model.copy(url.absoluteString, message: "Freigabelink kopiert")
+                        model.copy(url.absoluteString, message: "Share link copied")
                     } label: {
                         Text(url.host ?? url.absoluteString).font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(DS.accent).lineLimit(1).truncationMode(.middle)
-                    }.buttonStyle(.plain).help("Freigabelink kopieren")
-                        .accessibilityLabel("Freigabelink kopieren: \(url.absoluteString)")
+                    }.buttonStyle(.plain).help("Copy share link")
+                        .accessibilityLabel("Copy share link: \(url.absoluteString)")
                         .transition(.opacity)
                 } else {
                     detail.font(.system(size: 10)).foregroundStyle(DS.muted).lineLimit(1)
@@ -144,7 +143,7 @@ struct TunnelStatusRow: View {
                         .transition(.opacity)
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
-            IconButton(symbol: "xmark", help: record.phase.isActive ? "Freigabe beenden" : "Hinweis schließen") {
+            IconButton(symbol: "xmark", help: record.phase.isActive ? "Stop sharing" : "Dismiss notice") {
                 model.stopSharing(record)
             }.disabled(record.phase == .stopping)
         }.frame(height: 48)

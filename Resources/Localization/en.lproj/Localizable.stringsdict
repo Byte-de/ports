@@ -10,6 +10,22 @@
 	<!-- MARK: Sources/PortsApp/ActivityView.swift -->
 
 	<!-- MARK: Sources/PortsApp/DesignSystem.swift -->
+	<key>CPU history from %lld samples</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>CPU history from %#@samples@</string>
+		<key>samples</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld sample</string>
+			<key>other</key>
+			<string>%lld samples</string>
+		</dict>
+	</dict>
 
 	<!-- MARK: Sources/PortsApp/LaunchModel.swift -->
 
@@ -20,6 +36,38 @@
 	<!-- MARK: Sources/PortsApp/NotchController.swift -->
 
 	<!-- MARK: Sources/PortsApp/OnboardingView.swift -->
+	<key>%lld agents</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@agents@</string>
+		<key>agents</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld agent</string>
+			<key>other</key>
+			<string>%lld agents</string>
+		</dict>
+	</dict>
+	<key>%lld servers detected</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@servers@</string>
+		<key>servers</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld server detected</string>
+			<key>other</key>
+			<string>%lld servers detected</string>
+		</dict>
+	</dict>
 
 	<!-- MARK: Sources/PortsApp/PortsApp.swift -->
 

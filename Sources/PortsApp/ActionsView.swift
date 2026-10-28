@@ -11,12 +11,12 @@ struct ActionsView: View {
         if rows.saved.isEmpty && rows.oneOff.isEmpty {
             VStack(spacing: 14) {
                 EmptyState(
-                    symbol: "bolt", title: "Ein Befehl. Ein Klick.",
-                    detail: "Speichere einen Startbefehl mit seinem Projektordner.")
+                    symbol: "bolt", title: "One command. One click.",
+                    detail: "Save a launch command with its project folder.")
                 Button {
                     model.presentLaunch(from: surface)
                 } label: {
-                    Label("Aktion hinzufügen", systemImage: "plus")
+                    Label("Add Action", systemImage: "plus")
                 }.buttonStyle(QuietButton()).disabled(model.demoMode).padding(.bottom, 28)
             }
         } else {
@@ -419,14 +419,18 @@ struct LaunchForm: View {
             HStack {
                 Text(title).font(.system(size: 17, weight: .medium))
                 Spacer()
-                IconButton(symbol: "xmark", help: "Schließen") { model.dismissPanelDialog() }
+                IconButton(
+                    symbol: "xmark",
+                    help: LocalizedStringResource(
+                        "launchForm.close", defaultValue: "Close", comment: "Closes the action form without saving")
+                ) { model.dismissPanelDialog() }
             }
             field("NAME", placeholder: namePlaceholder, value: $name, focus: .name)
             field("COMMAND", placeholder: "npm run dev", value: $command, focus: .command, monospaced: true)
             VStack(alignment: .leading, spacing: 9) {
                 Text("PROJECT FOLDER").overline()
                 HStack(spacing: 8) {
-                    TextField("/Pfad/zum/Projekt", text: $directory).font(.system(size: 12, design: .monospaced))
+                    TextField("/path/to/project", text: $directory).font(.system(size: 12, design: .monospaced))
                         .textFieldStyle(.plain)
                         .focused($focusedField, equals: .directory)
                         .padding(11).background(DS.background, in: RoundedRectangle(cornerRadius: 8))

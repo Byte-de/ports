@@ -86,7 +86,8 @@ final class NotchController: NSObject {
     private func createPanel(model: MonitorModel) {
         let panel = NotchPanel(
             contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        panel.title = "Byte Ports – Notch"
+        panel.title = String(
+            localized: "\(AppInfo.name) notch panel", comment: "Accessibility title of the notch window")
         // A custom NSPanel does not reliably inherit a SwiftUI presentation's
         // preferred color scheme. Match the app's deliberately dark surfaces.
         panel.appearance = NSAppearance(named: .darkAqua)

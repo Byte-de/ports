@@ -113,9 +113,16 @@ struct StatusLabel: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(state == .paused ? DS.orange : DS.accent).frame(width: 5, height: 5)
-            if !compact { Text(state == .paused ? "Pausiert" : "Läuft").font(.system(size: 11)) }
+            if !compact { Text(title).font(.system(size: 11)) }
         }.foregroundStyle(state == .paused ? DS.orange : DS.accent)
-            .accessibilityLabel(state == .paused ? "Pausiert" : "Prozess läuft")
+            .accessibilityLabel(Text(title))
+    }
+    private var title: LocalizedStringResource {
+        state == .paused
+            ? LocalizedStringResource(
+                "status.paused", defaultValue: "Paused", comment: "State of a detected service in its details")
+            : LocalizedStringResource(
+                "status.running", defaultValue: "Running", comment: "State of a detected service in its details")
     }
 }
 
@@ -305,23 +312,28 @@ struct EmptyState: View {
     }
 }
 
+/// Numbers follow the user's locale: "1,5 GB", "12,4 %" and "1h 5min" in German, "1.5 GB", "12.4%" and "1h 5m" in
+/// English.
 enum Format {
     static func memory(_ bytes: UInt64?) -> String {
         guard let bytes else { return "—" }
-        if bytes >= 1_073_741_824 { return String(format: "%.1f GB", Double(bytes) / 1_073_741_824) }
-        return "\(bytes / 1_048_576) MB"
+        // "0 bytes" rather than "Zero kB" for a process that reports no resident memory.
+        return Int64(clamping: bytes).formatted(.byteCount(style: .memory, spellsOutZero: false))
     }
-    static func cpu(_ value: Double?) -> String { value.map { String(format: "%.1f %%", $0) } ?? "—" }
-    static func uptime(_ start: Date) -> String {
-        let seconds = max(0, Int(Date().timeIntervalSince(start)))
-        if seconds >= 3600 { return "\(seconds / 3600)h \((seconds % 3600) / 60)m" }
-        if seconds >= 60 { return "\(seconds / 60)m" }
-        return "\(seconds)s"
+    /// `value` is in percent of one core, so a busy process can pass 100.
+    static func cpu(_ value: Double?) -> String {
+        value.map { ($0 / 100).formatted(.percent.precision(.fractionLength(1))) } ?? "—"
     }
+    static func uptime(_ start: Date) -> String { uptime(since: start, width: .narrow) }
     /// The uptime as VoiceOver should say it: whole words in the app's language, not the compact visual "1h 3m".
-    static func spokenUptime(_ start: Date) -> String {
-        Duration.seconds(max(0, Int(Date().timeIntervalSince(start))))
-            .formatted(.units(allowed: [.hours, .minutes, .seconds], width: .wide, maximumUnitCount: 2))
+    static func spokenUptime(_ start: Date) -> String { uptime(since: start, width: .wide) }
+    /// Seconds count only in the first hour, so 3601 s reads "1h" rather than "1h 1s", and the last unit rounds down,
+    /// so "2h" does not show 30 s before the second hour is over.
+    private static func uptime(since start: Date, width: Duration.UnitsFormatStyle.UnitWidth) -> String {
+        let seconds = max(0, Int(Date().timeIntervalSince(start)))
+        let units: Set<Duration.UnitsFormatStyle.Unit> = seconds >= 3600 ? [.hours, .minutes] : [.minutes, .seconds]
+        return Duration.seconds(seconds)
+            .formatted(.units(allowed: units, width: width, maximumUnitCount: 2, fractionalPart: .hide(rounded: .down)))
     }
     /// host:port for clients that take no URL, such as a database client. Wildcard binds name loopback, as the URL does.
     static func hostAndPort(_ endpoint: ListeningEndpoint) -> String {
@@ -367,7 +379,7 @@ struct Sparkline: View {
                     if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
                 }
             }.stroke(tint, style: StrokeStyle(lineWidth: 1.4, lineCap: .round, lineJoin: .round))
-        }.accessibilityLabel("CPU-Verlauf aus \(values.count) Messungen")
+        }.accessibilityLabel("CPU history from \(values.count) samples")
     }
 }
 

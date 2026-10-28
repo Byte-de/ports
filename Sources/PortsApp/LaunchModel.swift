@@ -128,7 +128,7 @@ extension MonitorModel {
                 if preferences.lastLaunchDirectory != configuration.directory {
                     persistQuietly { $0.lastLaunchDirectory = configuration.directory }
                 }
-                record("\(configuration.name) gestartet", detail: configuration.directory, symbol: "play.circle")
+                record("“\(configuration.name)” started", detail: configuration.directory, symbol: "play.circle")
                 // After the entry, so a command that fails at once is reported after its start.
                 await reloadLaunches()
                 if let formID, launchForm?.id == formID { launchForm = nil }

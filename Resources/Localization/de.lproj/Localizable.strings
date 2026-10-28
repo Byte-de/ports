@@ -12,8 +12,11 @@
 "Open %@" = "%@ öffnen";
 "Open at login" = "Bei der Anmeldung öffnen";
 "Open in browser" = "Im Browser öffnen";
+"PROJECT FOLDER" = "PROJEKTORDNER";
 "Quit %@" = "%@ beenden";
 "Resume" = "Fortsetzen";
+"Share Publicly" = "Öffentlich teilen";
+"Share link copied" = "Freigabelink kopiert";
 "Starts quietly in the menu bar." = "Startet still in der Menüleiste.";
 "Stop “%@”?" = "„%@“ stoppen?";
 "Stopped" = "Gestoppt";
@@ -22,6 +25,8 @@
 "The login item couldn't be changed." = "Das Anmeldeobjekt konnte nicht geändert werden.";
 
 /* MARK: Sources/PortsApp/ActionsView.swift */
+"/path/to/project" = "/Pfad/zum/Projekt";
+"Add Action" = "Aktion hinzufügen";
 "COMMAND" = "BEFEHL";
 "Choose…" = "Auswählen…";
 "Clear Finished" = "Beendete entfernen";
@@ -47,8 +52,8 @@
 "New Action" = "Neue Aktion";
 "New output" = "Neue Ausgabe";
 "No output yet…" = "Noch keine Ausgabe…";
+"One command. One click." = "Ein Befehl. Ein Klick.";
 "Output copied" = "Ausgabe kopiert";
-"PROJECT FOLDER" = "PROJEKTORDNER";
 "RUN ONCE" = "EINMALIG GESTARTET";
 "Remove from List" = "Aus Liste entfernen";
 "Restart" = "Neu starten";
@@ -57,6 +62,7 @@
 "Runs in zsh with your shell's environment variables. Aliases aren't available." = "Läuft in zsh mit den Umgebungsvariablen deiner Shell. Aliase sind nicht verfügbar.";
 "SAVED" = "GESPEICHERT";
 "Save" = "Sichern";
+"Save a launch command with its project folder." = "Speichere einen Startbefehl mit seinem Projektordner.";
 "Save as action" = "Als Aktion speichern";
 "Show Output" = "Ausgabe anzeigen";
 "Start" = "Starten";
@@ -66,6 +72,7 @@
 "The service and its subprocesses will be asked to quit." = "Der Dienst und seine Unterprozesse werden zum Beenden aufgefordert.";
 "job.stop" = "Stoppen";
 "job.stopEllipsis" = "Stoppen…";
+"launchForm.close" = "Schließen";
 "“%@” isn't responding to Stop. Force Stop ends the service and its subprocesses without cleanup; unsaved data may be lost." = "„%@“ reagiert nicht auf Stoppen. Sofort beenden schließt den Dienst und seine Unterprozesse ohne Aufräumen; ungesicherte Daten können verloren gehen.";
 "“%@” isn't responding to Stop. Force Stop ends the service and its subprocesses without cleanup; unsaved data may be lost. It restarts afterwards." = "„%@“ reagiert nicht auf Stoppen. Sofort beenden schließt den Dienst und seine Unterprozesse ohne Aufräumen; ungesicherte Daten können verloren gehen. Danach wird er neu gestartet.";
 
@@ -75,6 +82,8 @@
 
 /* MARK: Sources/PortsApp/DesignSystem.swift */
 "all interfaces" = "alle Schnittstellen";
+"status.paused" = "Pausiert";
+"status.running" = "Läuft";
 
 /* MARK: Sources/PortsApp/LaunchModel.swift */
 "Action deleted" = "Aktion gelöscht";
@@ -84,6 +93,7 @@
 "“%@” isn't responding" = "„%@“ reagiert nicht";
 "“%@” isn't responding and wasn't restarted." = "„%@“ reagiert nicht und wurde nicht neu gestartet.";
 "“%@” restarted" = "„%@“ neu gestartet";
+"“%@” started" = "„%@“ gestartet";
 "“%@” stopped" = "„%@“ gestoppt";
 
 /* MARK: Sources/PortsApp/LogTextView.swift */
@@ -102,6 +112,7 @@
 "%@: quit requested" = "%@: Beenden angefordert";
 "%@: resumed" = "%@: fortgesetzt";
 "%@: stop requested" = "%@: Stoppen angefordert";
+"Copied" = "Kopiert";
 "Saving is turned off so the unreadable settings file is kept. The README has details." = "Speichern ist deaktiviert, damit die nicht lesbare Einstellungsdatei erhalten bleibt. Details stehen in der README.";
 "Terminal wasn't found." = "Terminal wurde nicht gefunden.";
 "The address couldn't be opened." = "Die Adresse konnte nicht geöffnet werden.";
@@ -117,13 +128,16 @@
 "Agents" = "Agenten";
 "Agents (⌘%@)" = "Agenten (⌘%@)";
 "Back (⌘[)" = "Zurück (⌘[)";
+"Close search" = "Suche schließen";
 "Close window (⌘W)" = "Fenster schließen (⌘W)";
 "Collapse panel" = "Panel einklappen";
 "Detection failed: %@" = "Erkennung fehlgeschlagen: %@";
 "New Action (⌘N)" = "Neue Aktion (⌘N)";
+"OK" = "OK";
 "Output" = "Ausgabe";
 "Project, name, PID or port" = "Projekt, Name, PID oder Port";
 "Resume detection" = "Erkennung fortsetzen";
+"Sample data · process actions are turned off" = "Beispieldaten · Prozessaktionen sind deaktiviert";
 "Search (⌘F)" = "Suchen (⌘F)";
 "Search activity" = "Aktivität durchsuchen";
 "Search by project, name, PID or port" = "Nach Projekt, Name, PID oder Port suchen";
@@ -133,9 +147,11 @@
 "Settings" = "Einstellungen";
 "Settings (⌘,)" = "Einstellungen (⌘,)";
 "Settings – update available (⌘,)" = "Einstellungen – Update verfügbar (⌘,)";
+"Show live data" = "Live anzeigen";
 "detection.paused" = "Pausiert";
 
 /* MARK: Sources/PortsApp/NotchController.swift */
+"%@ notch panel" = "%@ – Notch-Panel";
 "Open %@, public share active" = "%@ öffnen, öffentliche Freigabe aktiv";
 "notch.demo" = "Demo";
 
@@ -195,6 +211,7 @@
 "%@ (not installed)" = "%@ (nicht installiert)";
 "%@ is up to date." = "%@ ist aktuell.";
 "ACCESS" = "ZUGRIFF";
+"Add" = "Hinzufügen";
 "Already in use by another app." = "Wird bereits von einer anderen App verwendet.";
 "Also show services without a recognized development framework." = "Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.";
 "Asks GitHub for the latest version once a week. No identifiers are sent." = "Fragt GitHub einmal pro Woche nach der neuesten Version. Es werden keine Kennungen gesendet.";
@@ -204,7 +221,9 @@
 "Custom agents" = "Eigene Agenten";
 "DETECTION" = "ERKENNUNG";
 "Dismiss" = "Ausblenden";
+"Display name" = "Anzeigename";
 "Download ↗" = "Laden ↗";
+"Exact file name or entry script, without the extension." = "Exakter Dateiname oder Einstiegsskript, ohne Dateiendung.";
 "Help ↗" = "Hilfe ↗";
 "Interval" = "Intervall";
 "Introduction" = "Einführung";
@@ -218,6 +237,7 @@
 "Opens a new window in the project folder. It can't attach to a running session." = "Öffnet ein neues Fenster im Projektordner. Laufende Sitzungen können nicht übernommen werden.";
 "Opens and closes %@ from any app." = "Öffnet und schließt %@ aus jeder App.";
 "Privacy ↗" = "Datenschutz ↗";
+"Remove rule" = "Regel entfernen";
 "Show all TCP listeners" = "Alle TCP-Listener anzeigen";
 "TERMINAL" = "TERMINAL";
 "Terminal app" = "Terminal-App";
@@ -225,6 +245,7 @@
 "UPDATES" = "UPDATES";
 "Version %@ is available." = "Version %@ ist verfügbar.";
 "Waiting for your approval in System Settings." = "Wartet auf deine Freigabe in den Systemeinstellungen.";
+"e.g. my-agent" = "z. B. my-agent";
 "settings.quit" = "Beenden";
 
 /* MARK: Sources/PortsApp/QuitCoordinator.swift */
@@ -252,6 +273,7 @@
 "Current work in “%@” will be interrupted. The process won't restart automatically." = "Die laufende Arbeit in „%@“ wird unterbrochen. Der Prozess startet nicht automatisch neu.";
 "Desktop app" = "Desktop-App";
 "Details" = "Details";
+"LAUNCH COMMAND" = "STARTBEFEHL";
 "New Action in This Folder…" = "Neue Aktion in diesem Ordner…";
 "Open App" = "App öffnen";
 "Open app" = "App öffnen";
@@ -259,10 +281,10 @@
 "Open in Browser" = "Im Browser öffnen";
 "Opens a new window in the project folder." = "Öffnet ein neues Fenster im Projektordner.";
 "PID %@" = "PID %@";
+"PID %@ · %@" = "PID %@ · %@";
 "Pause" = "Pausieren";
 "Quit “%@”?" = "„%@“ beenden?";
 "Service no longer running" = "Dienst nicht mehr aktiv";
-"Share Publicly" = "Öffentlich teilen";
 "Show details" = "Details anzeigen";
 "Show in Finder" = "Im Finder zeigen";
 "The process will be asked to quit and won't restart automatically." = "Der Prozess wird zum Beenden aufgefordert und startet nicht automatisch neu.";
@@ -293,7 +315,6 @@
 "Reconnecting…" = "Verbindung wird erneuert…";
 "Share ended" = "Freigabe beendet";
 "Share is live · copy the link from its row" = "Freigabe bereit · Link in der Zeile kopieren";
-"Share link copied" = "Freigabelink kopiert";
 "Stopping share…" = "Freigabe wird beendet…";
 
 /* MARK: Sources/PortsApp/TunnelViews.swift */
@@ -301,10 +322,17 @@
 "Also reachable on your network" = "Auch im Netzwerk erreichbar";
 "Anyone with the link can reach this server through Cloudflare, without a password. Sharing ends when you stop it or quit the app." = "Jeder mit dem Link erreicht diesen Server über Cloudflare, ohne Passwort. Die Freigabe endet, wenn du sie stoppst oder die App beendest.";
 "Copy share link" = "Freigabelink kopieren";
+"Copy share link: %@" = "Freigabelink kopieren: %@";
+"Creates a public Cloudflare link. Anyone with the link can reach this server." = "Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.";
+"Dismiss notice" = "Hinweis schließen";
 "Doesn't answer HTTP – can't be shared" = "Antwortet nicht über HTTP – Teilen nicht möglich";
 "No HTTP" = "Kein HTTP";
+"Port %@" = "Port %@";
+"Port %@ · cancel anytime" = "Port %@ · Abbrechen jederzeit möglich";
 "Preparing share…" = "Freigabe wird vorbereitet…";
 "Share publicly" = "Öffentlich teilen";
+"Share this server publicly?" = "Server öffentlich teilen?";
+"Stop sharing" = "Freigabe beenden";
 
 /* MARK: Sources/PortsApp/UpdateModel.swift */
 
@@ -341,7 +369,7 @@
 /* MARK: Sources/PortsCore/ProcessInspector.swift */
 "The action could not be completed (system error %d)." = "Die Aktion konnte nicht ausgeführt werden (Systemfehler %d).";
 "The process has already ended or its identity changed. The list will refresh." = "Der Prozess wurde bereits beendet oder seine Identität hat sich geändert. Die Liste wird aktualisiert.";
-"The process list is changing too quickly. Please scan again." = "Die Prozessliste ändert sich zu schnell. Bitte erneut scannen.";
+"The process list is changing too quickly." = "Die Prozessliste ändert sich zu schnell.";
 "The process list is not available." = "Die Prozessliste ist nicht verfügbar.";
 "This process is protected. Open its app to manage it there." = "Dieser Prozess ist geschützt. Öffne die zugehörige App, um ihn dort zu verwalten.";
 

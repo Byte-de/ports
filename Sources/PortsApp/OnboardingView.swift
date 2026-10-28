@@ -187,11 +187,9 @@ struct OnboardingView: View {
                     Label("Ready for your first service", systemImage: "checkmark")
                 } else {
                     let counts = model.counts
-                    Label(
-                        "\(counts.agents) \(counts.agents == 1 ? "Agent" : "Agenten")",
-                        systemImage: "sparkles")
-                    Text("·").foregroundStyle(DS.muted)
-                    Label("\(counts.servers) Server erkannt", systemImage: "server.rack")
+                    Label("\(counts.agents) agents", systemImage: "sparkles")
+                    Text(verbatim: "·").foregroundStyle(DS.muted).accessibilityHidden(true)
+                    Label("\(counts.servers) servers detected", systemImage: "server.rack")
                 }
             }.font(.system(size: 12)).monospacedDigit().foregroundStyle(DS.muted)
             if model.snapshot.warning != nil && !model.demoMode {

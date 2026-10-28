@@ -357,9 +357,9 @@ struct MonitorPanel: View {
     private var demoNotice: some View {
         HStack(spacing: 5) {
             Text("Demo").font(.system(size: 10, weight: .medium))
-                .help("Beispieldaten · Prozessaktionen sind deaktiviert")
+                .help("Sample data · process actions are turned off")
             Spacer()
-            Button("Live anzeigen") { model.toggleDemo() }.buttonStyle(.plain).font(.system(size: 10))
+            Button("Show live data") { model.toggleDemo() }.buttonStyle(.plain).font(.system(size: 10))
         }.foregroundStyle(DS.orange).padding(.horizontal, 16).padding(.bottom, 9)
     }
 
@@ -377,7 +377,7 @@ struct MonitorPanel: View {
                 closeSearch()
             } label: {
                 Image(systemName: "xmark.circle.fill").foregroundStyle(DS.muted)
-            }.buttonStyle(.plain).help("Suche schließen")
+            }.buttonStyle(.plain).help("Close search")
         }.font(.system(size: 12)).padding(.horizontal, 12).frame(height: 36)
             .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
             .padding(.horizontal, 16).padding(.bottom, 10)

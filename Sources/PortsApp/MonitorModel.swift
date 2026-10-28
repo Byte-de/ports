@@ -681,7 +681,7 @@ final class MonitorModel {
         }
     }
 
-    func copy(_ value: String, message: LocalizedStringResource = "Kopiert", animateFeedback: Bool? = nil) {
+    func copy(_ value: String, message: LocalizedStringResource = "Copied", animateFeedback: Bool? = nil) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(value, forType: .string)
         notify(message, animate: animateFeedback ?? PanelMotion.isPointerEvent)

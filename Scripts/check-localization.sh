@@ -1,6 +1,6 @@
 #!/bin/bash
-# Missing-translation check: compiler-extracted keys against Resources/Localization (docs/LOCALIZATION.md).
-# Extra arguments go to check-localization.py, e.g. --report or --strict.
+# Missing-translation check in strict mode: compiler-extracted keys against Resources/Localization, with no baseline
+# and no German text in Swift literals (docs/LOCALIZATION.md). Extra arguments, e.g. --report, go to the checker.
 set -euo pipefail
 # Keys are emitted only for recompiled files, so the scan uses its own clean build. The directory is chosen
 # before toolchain.sh derives the scratch, cache and module paths from it.
@@ -14,6 +14,7 @@ sources=()
 for target in PortsApp PortsCore PortsFeatures; do
   if [[ -d "$project_root/Sources/$target" ]]; then sources+=("$project_root/Sources/$target"); fi
 done
+# The deleted baseline's path stays, so the check fails if the file ever comes back (E12). It is never read.
 python3 -I "$project_root/Scripts/check-localization.py" --stringsdata "$scan_dir/stringsdata" \
   --sources "${sources[@]}" --localizations "$project_root/Resources/Localization" \
   --info-plist "$project_root/Resources/Info.plist" --baseline "$project_root/Scripts/localization-baseline.txt" "$@"

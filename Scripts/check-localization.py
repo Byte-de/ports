@@ -2,11 +2,12 @@
 """Localization check for Byte Ports: Python stdlib plus /usr/bin/plutil.
 
 Compares the keys swiftc extracted (-emit-localized-strings) and the literals passed to String sinks with the tables
-in Resources/Localization. Legacy text listed in the baseline (one key per line, newline written as \\n and backslash
-as \\\\) is tolerated until a step converts it; the baseline may only shrink. docs/LOCALIZATION.md explains each rule.
+in Resources/Localization. The check is always strict: every key needs German, no Swift literal holds German text, and
+the deleted legacy baseline must not come back (only its existence is checked). docs/LOCALIZATION.md explains each
+rule.
 
 Usage: check-localization.py --stringsdata DIR --sources DIR [DIR ...] --localizations DIR --info-plist FILE
-           --baseline FILE [--write-baseline] [--report] [--strict]
+           --baseline FILE [--report]
        check-localization.py --self-test
 """
 import argparse
@@ -294,14 +295,6 @@ def plutil_json(path):
     return json.loads(result.stdout)
 
 
-def encode_baseline(key):
-    return key.replace("\\", "\\\\").replace("\n", "\\n")
-
-
-def decode_baseline(line):
-    return re.sub(r"\\(.)", lambda match: "\n" if match.group(1) == "n" else match.group(1), line)
-
-
 def markdown_cell(text):
     return text.replace("|", "\\|").replace("\n", "<br>") if text else ""
 
@@ -359,8 +352,8 @@ class Check:
         options, self.lines = self.options, {}
         localizations = pathlib.Path(options.localizations)
         baseline_path = pathlib.Path(options.baseline)
-        if options.strict and baseline_path.exists():
-            self.flag(baseline_path, 0, "E12", "strict mode allows no baseline: convert the entries and delete it")
+        if baseline_path.exists():
+            self.flag(baseline_path, 0, "E12", "no baseline is allowed: convert the entries and delete it")
 
         # Extracted keys (E1, E2).
         entries, extracted_at = collections.defaultdict(list), collections.defaultdict(set)
@@ -418,33 +411,10 @@ class Check:
             german_literals += [(path, literal) for literal in german]
 
         untranslated = {key for key in entries if has_letters(english(key)) and key not in translated}
-        legacy = untranslated | {literal.text for _, literal in sink_literals + error_literals}
-        baseline, baseline_lines = set(), {}
-        if options.write_baseline:
-            if baseline_path.exists():
-                print(f"{baseline_path} exists; its entries may only be removed", file=sys.stderr)
-                return 2
-            baseline_path.write_text("".join(encode_baseline(key) + "\n" for key in sorted(legacy)), encoding="utf-8")
-            print(f"Wrote {len(legacy)} baseline entries to {baseline_path}", file=sys.stderr)
-        if baseline_path.exists() and not options.strict:
-            previous = None
-            for number, raw in enumerate(baseline_path.read_text(encoding="utf-8").split("\n"), 1):
-                if not raw:
-                    continue
-                key = decode_baseline(raw)
-                if key in baseline:
-                    self.flag(baseline_path, number, "E12", f"duplicate entry {key!r}")
-                elif previous is not None and raw < previous:
-                    self.flag(baseline_path, number, "E12", "keep the baseline sorted")
-                baseline.add(key)
-                baseline_lines.setdefault(key, number)
-                previous = raw
 
-        # E3, E4: new keys need German and must be English.
+        # E3, E4: keys need German and must be English.
         unused = sorted((set(de_strings) | set(de_plurals) | set(en_plurals)) - set(entries))
         for key in sorted(entries, key=lambda key: (str(entries[key][0][0]), entries[key][0][1])):
-            if key in baseline:
-                continue
             text = english(key)
             if GERMAN.search(key) or GERMAN.search(text):
                 for source, line, _ in entries[key]:
@@ -483,23 +453,15 @@ class Check:
             for key, rule in sorted(table.items()):
                 self.check_plural(path, key, rule, english(key) if key in entries else None)
 
-        # E11, E12, E14, E16.
+        # E11, E14, E16.
         for path, literal in sink_literals:
-            if literal.text not in baseline:
-                self.flag(
-                    path, literal.line, "E11", f"literal {literal.text!r} reaches a String sink; use String(localized:)"
-                )
+            self.flag(
+                path, literal.line, "E11", f"literal {literal.text!r} reaches a String sink; use String(localized:)"
+            )
         for path, literal in error_literals:
-            if literal.text not in baseline:
-                self.flag(path, literal.line, "E16", f"error text {literal.text!r} must be String(localized:comment:)")
-        for key in sorted(baseline):
-            if key in translated:
-                self.flag(baseline_path, baseline_lines[key], "E12", f"{key!r} is translated; remove it")
-            elif key not in legacy:
-                self.flag(baseline_path, baseline_lines[key], "E12", f"{key!r} is no longer used; remove it")
-        if options.strict:
-            for path, literal in german_literals:
-                self.flag(path, literal.line, "E14", f"German text in a Swift literal: {literal.text!r}")
+            self.flag(path, literal.line, "E16", f"error text {literal.text!r} must be String(localized:comment:)")
+        for path, literal in german_literals:
+            self.flag(path, literal.line, "E14", f"German text in a Swift literal: {literal.text!r}")
 
         # E13: usage descriptions shown by macOS need both languages.
         info = self.load_table(pathlib.Path(options.info_plist))
@@ -512,17 +474,13 @@ class Check:
                     self.flag(path, 0, "E13", f"{key} needs an entry in this table")
 
         if options.report:
-            self.print_report(entries, de_strings, de_plurals, baseline, sink_literals + error_literals)
+            self.print_report(entries, de_strings, de_plurals)
         for finding in sorted(self.findings):
             print(f"{finding.path}:{finding.line}: {finding.rule}: {finding.message}", file=sys.stderr)
         if self.findings:
             print(f"Localization check failed with {len(self.findings)} findings.", file=sys.stderr)
             return 1
-        print(
-            f"Localization check passed: {len(entries)} keys, {len(translated)} German entries, "
-            f"{len(baseline)} baseline entries.",
-            file=sys.stderr,
-        )
+        print(f"Localization check passed: {len(entries)} keys, {len(translated)} German entries.", file=sys.stderr)
         return 0
 
     def check_plural(self, path, key, rule, text):
@@ -577,7 +535,7 @@ class Check:
                 f"{key!r} takes {signature(text)} but the rule uses {signature(format_key, kinds)}",
             )
 
-    def print_report(self, entries, de_strings, de_plurals, baseline, literals):
+    def print_report(self, entries, de_strings, de_plurals):
         print("| Key | English | German | Location | Note |\n| --- | --- | --- | --- | --- |")
         rows = []
         for key, places in entries.items():
@@ -594,18 +552,13 @@ class Check:
                 )
             else:
                 german = de_strings.get(key, "")
-            if key in baseline:
-                note = "baseline"
-            elif not german:
+            if not german:
                 note = "missing"
             else:
                 note = "identical" if german == text else ""
             source, line, _ = places[0]
             more = f" (+{len(places) - 1})" if len(places) > 1 else ""
             rows.append((self.display(source), line, key, text if text != key else "", german, note + more))
-        for path, literal in literals:
-            if literal.text in baseline:
-                rows.append((self.display(path), literal.line, literal.text, "", "", "baseline (not extracted)"))
         for path, line, key, text, german, note in sorted(rows):
             cells = (key, text, german, f"{path}:{line}", note)
             print("| " + " | ".join(markdown_cell(cell) for cell in cells) + " |")
@@ -652,7 +605,6 @@ def self_test():
     expect("percent", signature("100 %% fertig"), ())
     expect("variable", signature("%#@seconds@", {"seconds": "integer"}), ("integer",))
     expect("letters", [has_letters(t) for t in ("%lld", "%@ · %1$@", "", "Stop %@")], [False, False, False, True])
-    expect("baseline", decode_baseline(encode_baseline("A\\n\nB")), "A\\n\nB")
     strings = '/* "Fake" = "Kommentar"; */\n"Copy" = "Kopieren";\n'
     strings += '"Say \\"hi\\"\\n" = "Sag „hi“";\n"Copy" = "Kopie";\n'
     expect(
@@ -691,10 +643,8 @@ def main(argv):
     parser.add_argument("--sources", required=True, nargs="+", type=pathlib.Path)
     parser.add_argument("--localizations", required=True, type=pathlib.Path)
     parser.add_argument("--info-plist", required=True, type=pathlib.Path)
-    parser.add_argument("--baseline", required=True, type=pathlib.Path)
-    parser.add_argument("--write-baseline", action="store_true", help="create the baseline once")
+    parser.add_argument("--baseline", required=True, type=pathlib.Path, help="the deleted legacy baseline (E12)")
     parser.add_argument("--report", action="store_true", help="print a Markdown review table to stdout")
-    parser.add_argument("--strict", action="store_true", help="no baseline and no German text in Swift literals")
     return Check(parser.parse_args(argv)).run()
 
 

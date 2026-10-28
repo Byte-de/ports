@@ -37,6 +37,20 @@ struct LocalizationTableTests {
         #expect(LocalizationTable.format("%lld seconds", language: language, count) == expected)
     }
 
+    /// The packaged app picks its table from CFBundleLocalizations; regional German, Swiss German included, uses
+    /// de.lproj, and a language without a table falls back to English.
+    @Test(arguments: [
+        (["de"], "de"), (["de-AT"], "de"), (["de-CH"], "de"), (["fr", "de"], "de"), (["en"], "en"), (["fr"], "en"),
+    ])
+    func languageMatrix(preferences: [String], expected: String) throws {
+        let url = LocalizationTable.directory.appending(path: "../Info.plist").standardized
+        let plist = try PropertyListSerialization.propertyList(from: Data(contentsOf: url), format: nil)
+        let info = try #require(plist as? [String: Any])
+        #expect(info["CFBundleDevelopmentRegion"] as? String == "en")
+        let localizations = try #require(info["CFBundleLocalizations"] as? [String])
+        #expect(Bundle.preferredLocalizations(from: localizations, forPreferences: preferences).first == expected)
+    }
+
     @Test func sourceTextIsTheFallback() throws {
         let german = try #require(LocalizationTable.bundle("de"))
         #expect(german.localizedString(forKey: "Untranslated text", value: nil, table: nil) == "Untranslated text")

@@ -240,14 +240,14 @@ struct PreferencesView: View {
 
     private var agentRules: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Exakter Dateiname oder Einstiegsskript, ohne Dateiendung.")
+            Text("Exact file name or entry script, without the extension.")
                 .font(.system(size: 11)).foregroundStyle(DS.muted)
             ForEach(model.preferences.agentRules) { rule in
                 HStack {
                     Text(rule.name).font(.system(size: 12))
                     Text(rule.executableName).font(.system(size: 10, design: .monospaced)).foregroundStyle(DS.muted)
                     Spacer()
-                    IconButton(symbol: "minus.circle", help: "Regel entfernen") {
+                    IconButton(symbol: "minus.circle", help: "Remove rule") {
                         model.preferences.agentRules.removeAll { $0.id == rule.id }
                         model.savePreferences()
                         Task { await model.refresh() }
@@ -255,9 +255,9 @@ struct PreferencesView: View {
                 }
             }
             HStack(spacing: 10) {
-                TextField("Anzeigename", text: $ruleName).textFieldStyle(.roundedBorder)
-                TextField("z. B. my-agent", text: $executableName).textFieldStyle(.roundedBorder)
-                Button("Hinzufügen") {
+                TextField("Display name", text: $ruleName).textFieldStyle(.roundedBorder)
+                TextField("e.g. my-agent", text: $executableName).textFieldStyle(.roundedBorder)
+                Button("Add") {
                     model.preferences.agentRules.append(
                         AgentRule(
                             name: ruleName.trimmingCharacters(in: .whitespaces),
