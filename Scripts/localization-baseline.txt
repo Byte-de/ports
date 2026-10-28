@@ -1,50 +1,15 @@
 %@ gestartet
 %lld Server erkannt
-%lld von %lld
 /Pfad/zum/Projekt
 Abbrechen
-Agenten
-Agenten und Server erscheinen automatisch im Panel.
 Aktion hinzufügen
-Aktualisieren
-Alle TCP-Listener anzeigen
-Alles bereit.
-Am oberen Bildschirmrand.\nAuch auf Macs ohne Notch.
 Anzeigename
-Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.
-Beenden
 Beispieldaten · Prozessaktionen sind deaktiviert
-Bereit
-Bereit für deinen ersten Dienst
-Byte Ports ist aktuell.
-Byte Ports liest Prozesse des angemeldeten Benutzers und deren TCP-Listener. Chat-Inhalte und Aufgabenfortschritt werden nicht ausgelesen. Agenten in entfernten Umgebungen oder innerhalb von Containern benötigen eigene Integrationen. Ports sind Listener-Nachweise, keine HTTP-Healthchecks. Externe Prozesse bieten keine nachträglich abrufbaren stdout-Logs.
-Byte Ports öffnen
 Byte Ports – Notch
 CPU-Verlauf aus %lld Messungen
-DEMO
-Das Panel
-Dein Zugriff
-Deine Agenten und Dev-Server im Blick.
-Demo
-Demo ansehen
-Demo öffnen
-Die Update-Prüfung ist fehlgeschlagen. Bitte versuche es später erneut.
-Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.
-ERKENNUNG
-Eigene Agenten
 Ein Befehl. Ein Klick.
-Ein Teil der Listener ist gerade nicht lesbar. Details findest du im Panel.
-Ein kompaktes Fenster.\nFrei auf dem Bildschirm platzierbar.
-Einführung abschließen und bisherige Einstellungen beibehalten
-Einführung ansehen
-Einführung schließen
-Einführung schließen (Esc)
-Einstellungen konnten nicht gespeichert werden
-Erneut versuchen
 Erstellt einen öffentlichen Cloudflare-Link. Jeder mit dem Link kann diesen Server aufrufen.
 Exakter Dateiname oder Einstiegsskript, ohne Dateiendung.
-Fenster & Menüleiste
-Fenster und Menüleiste verwenden
 Fortsetzen
 Freigabe beenden
 Freigabelink kopieren
@@ -53,19 +18,10 @@ Freigabelink kopiert
 Hinweis schließen
 Hinzufügen
 Im Finder öffnen
-Immer in Reichweite.
-Intervall
 Kopiert
 Live anzeigen
-Live-Erkennung startet beim Öffnen
-Lokale Erkennung. Ohne Telemetrie.
-Los geht’s
 Läuft
-Mit Notch-Panel
-Nach Updates suchen
 OK
-Ohne Speichern fortfahren
-Ohne Speichern gilt deine Auswahl nur für diese Sitzung. Die vorhandene Datei bleibt erhalten.
 PID %@ · %@
 PROJEKTORDNER
 Pausieren
@@ -74,28 +30,11 @@ Port %@
 Port %@ · Abbrechen jederzeit möglich
 Prozess läuft
 Regel entfernen
-SCHNELLER ZUGRIFF
 STARTBEFEHL
 Schließen
-Schritt %lld von %lld: %@
-Server
 Server öffentlich teilen?
 Speichere einen Startbefehl mit seinem Projektordner.
 Startbefehl kopieren
-Starte deine Agenten und Server wie gewohnt.
-Stoppen
 Suche schließen
-Update wird geprüft…
-Version %@ laden ↗
-Vorheriger Schritt
-Weiter
-Willkommen
-Willkommen bei Byte Ports
-Wähle deinen Schnellzugriff.
-Zurück
 z. B. my-agent
 Öffentlich teilen
-Öffentlich teilen verbindet den gewählten HTTP-Server mit Cloudflare. Jeder mit dem Link kann ihn aufrufen. Freigaben enden beim Stoppen oder Beenden von Byte Ports. Die manuelle Update-Prüfung fragt GitHub nach der neuesten Version.
-Öffnen
-Über Byte Ports
-Überspringen

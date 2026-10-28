@@ -285,13 +285,27 @@ struct MonitorPanel: View {
             IconButton(symbol: "clock.arrow.circlepath", help: "Activity", selected: navigation.top == .activity) {
                 push(.activity)
             }
-            IconButton(symbol: "gearshape", help: "Settings (⌘,)", selected: navigation.top == .settings) {
-                push(.settings)
-            }
+            settingsButton
             if let surfaceControl {
                 IconButton(symbol: surfaceControl.symbol, help: surfaceControl.help, action: surfaceControl.action)
             }
         }.padding(.horizontal, 16).frame(height: 54)
+    }
+
+    /// A newer release only adds a small dot: no menu bar change, no notification.
+    private var settingsButton: some View {
+        let badge = model.showsUpdateBadge
+        let help: LocalizedStringResource = badge ? "Settings – update available (⌘,)" : "Settings (⌘,)"
+        return IconButton(symbol: "gearshape", help: help, selected: navigation.top == .settings) {
+            push(.settings)
+        }
+        .overlay {
+            if badge {
+                // At the glyph's top trailing corner; the 14 pt gear sits centred in its 40 pt button.
+                Circle().fill(DS.accent).frame(width: 6, height: 6).offset(x: 8, y: -8)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
     }
 
     /// Pages are pushed over the tab, which stays mounted underneath with its scroll position.

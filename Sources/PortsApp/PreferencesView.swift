@@ -8,16 +8,11 @@ struct PreferencesView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                group("ERKENNUNG") {
-                    Toggle(isOn: Binding(get: { model.isMonitoring }, set: { model.setMonitoring($0) })) {
-                        settingLabel("Automatic detection")
-                    }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
-                        .accessibilityLabel("Automatic detection")
-                    Divider().overlay(DS.line)
+                group("DETECTION") {
                     HStack {
-                        settingLabel("Aktualisieren")
+                        settingLabel("Interval")
                         Spacer()
-                        Picker("Intervall", selection: $model.preferences.refreshInterval) {
+                        Picker("Interval", selection: $model.preferences.refreshInterval) {
                             ForEach([2, 3, 5, 10], id: \.self) { seconds in
                                 Text("\(seconds) seconds").tag(Double(seconds))
                             }
@@ -26,16 +21,36 @@ struct PreferencesView: View {
                         }
                     }
                     Divider().overlay(DS.line)
+                    Toggle(isOn: Binding(get: { model.isMonitoring }, set: { model.setMonitoring($0) })) {
+                        settingLabel("Automatic detection")
+                    }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
+                        .accessibilityLabel("Automatic detection")
+                    Divider().overlay(DS.line)
                     Toggle(isOn: $model.preferences.showOtherListeners) {
                         settingLabel(
-                            "Alle TCP-Listener anzeigen",
-                            detail: "Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.")
+                            "Show all TCP listeners",
+                            detail: "Also show services without a recognized development framework.")
                     }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
-                        .accessibilityLabel("Alle TCP-Listener anzeigen").onChange(
+                        .accessibilityLabel("Show all TCP listeners").onChange(
                             of: model.preferences.showOtherListeners
                         ) { model.savePreferences() }
+                    Divider().overlay(DS.line)
+                    DisclosureGroup {
+                        agentRules.padding(.top, 10)
+                    } label: {
+                        HStack {
+                            Text("Custom agents")
+                            Spacer()
+                            if !model.preferences.agentRules.isEmpty {
+                                Text(model.preferences.agentRules.count, format: .number).monospacedDigit()
+                                    .foregroundStyle(DS.muted)
+                            }
+                        }.frame(minHeight: 40).contentShape(Rectangle())
+                    }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
                 }
-                group("SCHNELLER ZUGRIFF") {
+                group("ACCESS") {
+                    loginItemRow
+                    Divider().overlay(DS.line)
                     Toggle(isOn: $model.preferences.showNotch) {
                         settingLabel(
                             "Notch panel",
@@ -45,68 +60,182 @@ struct PreferencesView: View {
                             model.savePreferences()
                             PanelWindowCoordinator.shared.configureNotch(model: model)
                         }
+                    Divider().overlay(DS.line)
+                    shortcutRow
                 }
-                DisclosureGroup {
-                    agentRules.padding(.top, 10)
-                } label: {
+                group("TERMINAL") {
                     HStack {
-                        Text("Eigene Agenten")
-                        Spacer()
-                        if !model.preferences.agentRules.isEmpty {
-                            Text(model.preferences.agentRules.count, format: .number).monospacedDigit()
-                                .foregroundStyle(DS.muted)
+                        settingLabel(
+                            "Terminal app",
+                            detail: "Opens a new window in the project folder. It can't attach to a running session.")
+                        Picker("Terminal app", selection: $model.preferences.terminalApp) {
+                            ForEach(terminalChoices, id: \.self) { terminal in terminalChoice(terminal) }
+                        }.labelsHidden().fixedSize().onChange(of: model.preferences.terminalApp) {
+                            model.savePreferences()
                         }
-                    }.frame(minHeight: 40).contentShape(Rectangle())
-                }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
+                    }
+                }
+                group("UPDATES") { updateControls }
                 Divider().overlay(DS.line)
-                HStack(spacing: 8) {
-                    Button("Einführung ansehen") { model.presentOnboarding() }.buttonStyle(QuietButton())
-                    Button(model.demoMode ? "Live anzeigen" : "Demo öffnen") { model.toggleDemo() }
-                        .buttonStyle(QuietButton())
-                }
-                DisclosureGroup {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Lokale Erkennung. Ohne Telemetrie.").font(.system(size: 12, weight: .medium))
-                        Text(
-                            "Byte Ports liest Prozesse des angemeldeten Benutzers und deren TCP-Listener. Chat-Inhalte und Aufgabenfortschritt werden nicht ausgelesen. Agenten in entfernten Umgebungen oder innerhalb von Containern benötigen eigene Integrationen. Ports sind Listener-Nachweise, keine HTTP-Healthchecks. Externe Prozesse bieten keine nachträglich abrufbaren stdout-Logs."
-                        )
-                        .font(.system(size: 11)).foregroundStyle(DS.muted).lineSpacing(4)
-                        Text(
-                            "Öffentlich teilen verbindet den gewählten HTTP-Server mit Cloudflare. Jeder mit dem Link kann ihn aufrufen. Freigaben enden beim Stoppen oder Beenden von Byte Ports. Die manuelle Update-Prüfung fragt GitHub nach der neuesten Version."
-                        ).font(.system(size: 11)).foregroundStyle(DS.muted).lineSpacing(4)
-                    }.padding(.top, 10)
-                } label: {
-                    Text("Über Byte Ports").frame(maxWidth: .infinity, minHeight: 40, alignment: .leading)
-                        .contentShape(Rectangle())
-                }.font(.system(size: 12, weight: .medium)).tint(DS.muted)
-                updateControls
-                HStack {
-                    Text(verbatim: "\(AppInfo.name) \(AppInfo.version)")
-                        .font(.system(size: 10)).foregroundStyle(DS.muted)
-                    Spacer()
-                    Button("Beenden") { QuitCoordinator.shared.requestQuit() }.buttonStyle(QuietButton())
-                }
+                footer
             }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
         }.scrollIndicators(.hidden)
+            .onAppear {
+                model.refreshInstalledTerminals()
+                loginItem.refresh()
+            }
+            // The notch panel never activates the app and keeps this page mounted while collapsed, so neither
+            // activation nor onAppear catches a change made in System Settings meanwhile.
+            .onChange(of: model.isShowing(.notch)) { _, shown in if shown { loginItem.refresh() } }
+    }
+
+    private var loginItem: LoginItem { .shared }
+
+    /// Reads the login item live and never saves it: System Settings can change it at any time.
+    @ViewBuilder private var loginItemRow: some View {
+        Toggle(isOn: Binding(get: { loginItem.isEnabled }, set: { setOpensAtLogin($0) })) {
+            settingLabel("Open at login", detail: loginItemDetail)
+        }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
+            .accessibilityLabel("Open at login").accessibilityHint(Text(loginItemDetail))
+            .disabled(!loginItem.isAvailable)
+        if loginItem.requiresApproval {
+            Button("Open Login Items…") { loginItem.openSystemSettings() }.buttonStyle(QuietButton())
+        }
+    }
+
+    private var loginItemDetail: LocalizedStringResource {
+        switch loginItem.availability {
+        case .notBundled: "Only available in the installed app."
+        case .needsMove: "Move the app to the Applications folder first."
+        case .available where loginItem.requiresApproval: "Waiting for your approval in System Settings."
+        case .available: "Starts quietly in the menu bar."
+        }
+    }
+
+    private var shortcut: GlobalShortcut { .shared }
+
+    /// It toggles the panel at home, so the copy names the app rather than the window: with the notch enabled, the
+    /// notch opens.
+    @ViewBuilder private var shortcutRow: some View {
+        let detail: LocalizedStringResource = "Opens and closes \(AppInfo.name) from any app."
+        Toggle(isOn: $model.preferences.opensWithGlobalShortcut) {
+            settingLabel("Keyboard shortcut \(shortcut.display)", detail: detail)
+        }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
+            .accessibilityLabel("Keyboard shortcut \(shortcut.display)").accessibilityHint(Text(detail))
+            .onChange(of: model.preferences.opensWithGlobalShortcut) {
+                model.savePreferences()
+                PanelWindowCoordinator.shared.configureShortcut(model: model)
+            }
+        if model.preferences.opensWithGlobalShortcut && shortcut.registrationFailed {
+            Text("Already in use by another app.").font(.system(size: 11)).foregroundStyle(DS.orange)
+        }
+    }
+
+    private func setOpensAtLogin(_ enabled: Bool) {
+        do {
+            try loginItem.setEnabled(enabled)
+        } catch {
+            model.report("The login item couldn't be changed.", as: .generic)
+        }
+    }
+
+    /// The installed terminals, plus a saved one that is missing, so the picker shows what is saved.
+    private var terminalChoices: [TerminalApp] {
+        TerminalApp.allCases.filter { model.installedTerminals.contains($0) || $0 == model.preferences.terminalApp }
+    }
+
+    /// A missing terminal can't be chosen again; opening falls back to Terminal until it is installed.
+    @ViewBuilder private func terminalChoice(_ terminal: TerminalApp) -> some View {
+        if model.installedTerminals.contains(terminal) {
+            Text(verbatim: terminal.displayName).tag(terminal)
+        } else {
+            Text("\(terminal.displayName) (not installed)").tag(terminal).disabled(true)
+        }
     }
 
     @ViewBuilder private var updateControls: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button("Nach Updates suchen") { model.checkForUpdates() }.buttonStyle(QuietButton())
-                .disabled(
-                    {
-                        if case .checking = model.updateStatus { return true }
-                        return false
-                    }())
-            switch model.updateStatus {
-            case .idle: EmptyView()
-            case .checking: Text("Update wird geprüft…").foregroundStyle(DS.muted)
-            case .current: Text("Byte Ports ist aktuell.").foregroundStyle(DS.muted)
-            case .available(let release):
-                Link("Version \(release.version.string) laden ↗", destination: release.url).foregroundStyle(DS.accent)
-            case .failed(let message): Text(message).foregroundStyle(DS.muted)
-            }
+        let detail: LocalizedStringResource = "Asks GitHub for the latest version once a week. No identifiers are sent."
+        Toggle(
+            isOn: Binding(
+                get: { model.preferences.checksForUpdatesAutomatically },
+                set: { model.setAutomaticUpdateChecks($0) })
+        ) {
+            settingLabel("Check for updates weekly", detail: detail)
+        }.toggleStyle(.switch).controlSize(.small).tint(DS.accent)
+            .accessibilityLabel("Check for updates weekly").accessibilityHint(Text(detail))
+        Divider().overlay(DS.line)
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                updateStatusLine
+                if let checked = model.preferences.lastUpdateCheck {
+                    // A clock that moved back would otherwise read as a check in the future.
+                    Text("Last checked \(min(checked, Date()), format: .relative(presentation: .named))")
+                        .foregroundStyle(DS.muted)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            Button("Check Now") { Task { await model.runUpdateCheck(automatic: false) } }
+                .buttonStyle(QuietButton()).disabled(model.updateCheckInFlight)
         }.font(.system(size: 11))
+    }
+
+    /// The release stays offered here after its hint was dismissed or a later check failed, so the gear's dot can
+    /// always be dismissed; only dismissing takes the dot away.
+    @ViewBuilder private var updateStatusLine: some View {
+        if case .checking = model.updateStatus {
+            Text("Checking…").foregroundStyle(DS.muted)
+        } else {
+            if isFailed { Text("The update check failed. Please try again later.").foregroundStyle(DS.muted) }
+            if let release = model.latestAvailableRelease {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("Version \(release.version.string) is available.")
+                    Link("Download ↗", destination: release.url).foregroundStyle(DS.accent)
+                    if model.showsUpdateBadge {
+                        Button("Dismiss") { model.dismissUpdateHint() }.buttonStyle(FooterLinkStyle())
+                    }
+                }
+            } else if !isFailed, model.preferences.lastUpdateCheck != nil || isCurrent {
+                // A failed check can't vouch for being up to date.
+                Text("\(AppInfo.name) is up to date.").foregroundStyle(DS.muted)
+            }
+        }
+    }
+
+    private var isCurrent: Bool {
+        if case .current = model.updateStatus { return true }
+        return false
+    }
+
+    private var isFailed: Bool {
+        if case .failed = model.updateStatus { return true }
+        return false
+    }
+
+    /// Secondary destinations as quiet text, so they don't compete with the settings above.
+    private var footer: some View {
+        let demoTitle: LocalizedStringResource = model.demoMode ? "Live data" : "Demo"
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Button("Introduction") { model.presentOnboarding() }
+                separator
+                Button(demoTitle) { model.toggleDemo() }
+                separator
+                Link("Help ↗", destination: AppInfo.helpURL)
+                separator
+                Link("Privacy ↗", destination: AppInfo.privacyURL)
+            }.buttonStyle(FooterLinkStyle())
+            HStack {
+                Text(verbatim: "\(AppInfo.name) \(AppInfo.version)").font(.system(size: 11)).foregroundStyle(DS.muted)
+                Spacer()
+                Button(
+                    LocalizedStringResource(
+                        "settings.quit", defaultValue: "Quit", comment: "Quits the app from the settings footer")
+                ) { QuitCoordinator.shared.requestQuit() }.buttonStyle(QuietButton())
+            }
+        }
+    }
+
+    private var separator: some View {
+        Text(verbatim: "·").font(.system(size: 11)).foregroundStyle(DS.muted).accessibilityHidden(true)
     }
 
     private var agentRules: some View {
@@ -162,5 +291,14 @@ struct PreferencesView: View {
                     .fixedSize(horizontal: false, vertical: true).lineSpacing(3)
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Plain 11 pt text with a taller hit area than the glyphs.
+private struct FooterLinkStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(size: 11)).foregroundStyle(DS.muted)
+            .opacity(configuration.isPressed ? 0.6 : 1)
+            .padding(.vertical, 6).contentShape(Rectangle())
     }
 }

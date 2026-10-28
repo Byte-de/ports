@@ -114,9 +114,24 @@ Added with the changes they cover; the release checklist takes them over.
 - Sharing indicator: the menu bar icon turns into a globe within 0.5 s of a
   share starting and returns to the port glyph once the last share has stopped.
   VoiceOver reads “Byte Ports – public share active, <count>”, otherwise
-  “Byte Ports, <count>”. The compact notch shows an accent globe after the
-  counts, and VoiceOver reads “Open Byte Ports, public share active”. Demo mode
-  shows neither.
+  “Byte Ports, <count>”. Beside a notch, the ears stay out while sharing with an
+  accent globe after the server count, and VoiceOver reads “Open Byte Ports,
+  public share active”. Demo mode shows neither.
+- Notch (built-in notch plus an external display, and an external display
+  alone): the panel stays on the notched screen while focus moves between
+  displays, moves to the primary screen with the lid closed and follows
+  unplugging and replugging. At rest nothing is visible: black on the notch with
+  no black edges around it, nothing on a plain screen. After a short hover on
+  the notch, or with keyboard focus, ears show the agent and server counts and
+  disappear when the pointer leaves; on a plain screen the top 4 pt at the
+  centre reveal a black pill “✦ n │ ▤ n” inside the menu bar. A click on either
+  expands the panel below the menu bar where it was before. Demo mode adds an
+  orange dot. With a crowded menu bar whose items reach the notch, a pointer
+  moving along the menu bar does not open the ears, every item next to the notch
+  stays clickable, and nothing covers title bars or tabs of other apps. A
+  full-screen app shows no compact element; a click on the menu bar item still
+  opens the panel there. A hidden menu bar (auto-hide) on a plain screen hides
+  the pill.
 - One panel: with the notch on, a click on the menu bar item expands the notch
   panel with squircle corners and a second click collapses it; no other window
   appears. With the notch off, the click shows the floating squircle window;

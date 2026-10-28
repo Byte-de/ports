@@ -20,6 +20,10 @@
 	<string>BytePorts</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.developer-tools</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

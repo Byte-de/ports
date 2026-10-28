@@ -266,8 +266,9 @@ struct InspectorView: View {
                         Text(service.process.command).font(.system(size: 11, design: .monospaced))
                             .foregroundStyle(DS.muted).textSelection(.enabled).lineLimit(8).lineSpacing(3)
                     }
-                    // Protected processes and the demo offer no pause or stop; only apps come forward.
-                    if model.canActivate(service) || model.isStoppable(service) {
+                    // Protected processes and the demo offer no pause or stop. Apps come forward; a CLI agent gets a
+                    // new terminal window, and the label says so.
+                    if model.canActivate(service) || model.opensTerminal(for: service) || model.isStoppable(service) {
                         HStack(spacing: 8) {
                             if model.canActivate(service) {
                                 Button {
@@ -275,6 +276,14 @@ struct InspectorView: View {
                                 } label: {
                                     Label("Open app", systemImage: "arrow.up.forward.square")
                                 }.buttonStyle(QuietButton()).disabled(model.demoMode)
+                                    .help("Brings the app to the front.")
+                            } else if model.opensTerminal(for: service) {
+                                Button {
+                                    model.activate(service)
+                                } label: {
+                                    Label("Open in \(model.effectiveTerminal.displayName)", systemImage: "terminal")
+                                }.buttonStyle(QuietButton()).disabled(model.demoMode)
+                                    .help("Opens a new window in the project folder.")
                             }
                             Spacer()
                             if model.isControllable(service) {
@@ -298,6 +307,7 @@ struct InspectorView: View {
                     }
                 }.padding(16)
             }
+            .onAppear { if model.opensTerminal(for: service) { model.lookUpTerminalsIfNeeded() } }
         } else {
             // The back button in the header leads to the list.
             EmptyState(symbol: "checkmark.circle", title: "Service no longer running")

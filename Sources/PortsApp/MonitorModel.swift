@@ -66,6 +66,9 @@ final class MonitorModel {
     var pendingForceStop: PendingForceStop?
     var pendingShare: TunnelTarget?
     var updateStatus: UpdateStatus = .idle
+    /// A manual or weekly check is waiting for GitHub. Another one is skipped meanwhile.
+    var updateCheckInFlight = false
+    @ObservationIgnored var automaticUpdateTask: Task<Void, Never>?
     var launchForm: LaunchFormRequest?
     /// A saved action awaiting confirmation of its deletion.
     var pendingActionDeletion: LaunchConfiguration?
@@ -86,6 +89,10 @@ final class MonitorModel {
     var nonHTTPTargets: Set<TunnelKey> = []
     var isQuitting = false
     var isSwitchingDemo = false
+    /// Terminal plus every known terminal on this Mac. Looked up when Settings appear and on first use, never in a
+    /// view body.
+    private(set) var installedTerminals: [TerminalApp] = [.terminal]
+    @ObservationIgnored private var hasLookedUpTerminals = false
     @ObservationIgnored let tunnels = CloudflareTunnelManager(
         client: Bundle.main.bundleURL.appending(path: "Contents/Helpers/cloudflared"),
         runner: Bundle.main.bundleURL.appending(path: "Contents/Helpers/ports-tunnel-runner"))
@@ -446,24 +453,46 @@ final class MonitorModel {
         onboardingSession = nil
     }
 
-    /// Draft choices become visible only after saving succeeds. Skipping passes
-    /// no choices; closing the introduction never changes persisted preferences.
-    func finishOnboarding(showNotch: Bool?, demo: Bool?, persist: Bool = true) throws {
+    /// Draft choices become visible only after saving succeeds. Skipping passes no choices; closing the introduction
+    /// never changes persisted preferences. The weekly check and the login item follow the save, so a failed save
+    /// neither asks GitHub nor registers anything.
+    func finishOnboarding(_ choices: OnboardingChoices?, demo: Bool?, persist: Bool = true) throws {
         var next = preferences
         next.hasCompletedOnboarding = true
-        if let showNotch { next.showNotch = showNotch }
+        choices?.apply(to: &next)
         if persist {
             guard persistenceAvailable else {
                 throw MonitorError.scanFailed(
-                    "Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.")
+                    String(
+                        localized: "The existing settings file can't be read and stays unchanged.",
+                        comment: "Onboarding couldn't save its choices"))
             }
             try writePreferences(next)
         }
+        let checksForUpdates = next.checksForUpdatesAutomatically
+        let updateChecksChanged = checksForUpdates != preferences.checksForUpdatesAutomatically
         preferences = next
         if !persist && !persistenceAvailable { panelError = nil }
         onboardingSession = nil
         navigation.select(.servers)
         if let demo, demo != demoMode { toggleDemo() }
+        if updateChecksChanged {
+            PortsLog.update.notice("Weekly update check \(checksForUpdates ? "on" : "off", privacy: .public)")
+            if checksForUpdates { startAutomaticUpdateChecks(initialDelay: .zero) }
+        }
+        // A login item outlives the session, so continuing without saving leaves it alone. It is applied once the
+        // panel has replaced the introduction, so a failure shows there.
+        let loginItem = LoginItem.shared
+        guard persist, loginItem.isAvailable,
+            let enabled = choices?.loginItemChange(currentlyEnabled: loginItem.isEnabled)
+        else { return }
+        Task { self.setOpensAtLogin(enabled) }
+    }
+
+    private func setOpensAtLogin(_ enabled: Bool) {
+        do { try LoginItem.shared.setEnabled(enabled) } catch {
+            report("The login item couldn't be changed.", as: .generic)
+        }
     }
 
     func toggleDemo() {
@@ -522,8 +551,9 @@ final class MonitorModel {
         return true
     }
 
-    /// Like `commitPreferences(_:)` for what the app remembers on its own, such as the last folder: a failure is only
-    /// logged, because nothing the user did was lost.
+    /// Like `commitPreferences(_:)` for what the app remembers on its own, such as the last folder or the last update
+    /// check: a failure is only logged, because nothing the user did was lost. Background bookkeeping never raises a
+    /// dialog.
     @discardableResult func persistQuietly(_ change: (inout AppPreferences) -> Void) -> Bool {
         guard persistenceAvailable else {
             PortsLog.persistence.info("Skipped a background save: saving is turned off")
@@ -662,31 +692,82 @@ final class MonitorModel {
         if !NSWorkspace.shared.open(url) { report("The address couldn't be opened.", as: .open) }
     }
 
-    func openDirectory(_ directory: String, terminal: Bool = false) {
+    /// Shows the folder in Finder.
+    func openDirectory(_ directory: String) {
         guard !demoMode else { return }
-        let url = URL(fileURLWithPath: directory, isDirectory: true)
-        if terminal {
-            guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
-                report("Terminal wasn't found.", as: .open)
-                return
-            }
-            NSWorkspace.shared.open([url], withApplicationAt: app, configuration: .init()) { [weak self] _, error in
-                if let error { Task { @MainActor in self?.report(error, as: .open) } }
-            }
-        } else if !NSWorkspace.shared.open(url) {
+        if !NSWorkspace.shared.open(URL(fileURLWithPath: directory, isDirectory: true)) {
             report("The project folder couldn't be opened.", as: .open)
         }
     }
 
-    func activate(_ service: ServiceRecord) {
-        guard !demoMode else { return }
-        if service.isDesktopApplication, let app = NSRunningApplication(processIdentifier: service.id.pid),
-            app.activate(options: [])
-        {
+    /// Resolves each known bundle id, because `urlsForApplications(toOpen:)` misses Terminal and Ghostty.
+    func refreshInstalledTerminals() {
+        hasLookedUpTerminals = true
+        let workspace = NSWorkspace.shared
+        let found = TerminalApp.allCases.filter {
+            $0 == .terminal || workspace.urlForApplication(withBundleIdentifier: $0.bundleIdentifier) != nil
+        }
+        // Assigned only on change, so Settings and details don't redraw whenever they appear.
+        if found != installedTerminals { installedTerminals = found }
+    }
+
+    /// Before the first label or window that names the terminal.
+    func lookUpTerminalsIfNeeded() {
+        if !hasLookedUpTerminals { refreshInstalledTerminals() }
+    }
+
+    /// The saved terminal while it is installed, otherwise Terminal.
+    var effectiveTerminal: TerminalApp {
+        installedTerminals.contains(preferences.terminalApp) ? preferences.terminalApp : .terminal
+    }
+
+    /// No terminal can attach to a running command-line session, so a CLI agent is offered a new window in its
+    /// project folder instead.
+    func opensTerminal(for service: ServiceRecord) -> Bool {
+        service.kind == .agent && !service.isDesktopApplication && service.projectDirectory != nil
+    }
+
+    /// Opens a new window of the preferred terminal in the folder, or of Terminal while that one is missing.
+    func openInTerminal(_ directory: String) {
+        guard !demoMode, directory != "/" else { return }
+        lookUpTerminalsIfNeeded()
+        let workspace = NSWorkspace.shared
+        var terminal = effectiveTerminal
+        var app = workspace.urlForApplication(withBundleIdentifier: terminal.bundleIdentifier)
+        if app == nil, terminal != .terminal {
+            // Removed since the last lookup: the labels fall back to Terminal as well.
+            refreshInstalledTerminals()
+            terminal = .terminal
+            app = workspace.urlForApplication(withBundleIdentifier: terminal.bundleIdentifier)
+        }
+        guard let app else {
+            report("Terminal wasn't found.", as: .open)
             return
         }
-        if let directory = service.projectDirectory {
-            openDirectory(directory, terminal: true)
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        workspace.open([folder], withApplicationAt: app, configuration: configuration) {
+            [weak self, terminal] _, error in
+            guard let error else { return }
+            PortsLog.ui.error(
+                "Terminal \(terminal.rawValue, privacy: .public) didn't open a folder: \(error.localizedDescription, privacy: .private)"
+            )
+            Task { @MainActor in
+                self?.report("\(terminal.displayName) couldn't open the project folder.", as: .open)
+            }
+        }
+    }
+
+    /// An app comes to the front; a CLI agent gets a new terminal window in its project folder.
+    func activate(_ service: ServiceRecord) {
+        guard !demoMode else { return }
+        if service.isDesktopApplication {
+            if NSRunningApplication(processIdentifier: service.id.pid)?.activate(options: []) != true {
+                PortsLog.ui.info("App pid \(service.id.pid, privacy: .public) didn't come to the front")
+            }
+        } else if opensTerminal(for: service), let directory = service.projectDirectory {
+            openInTerminal(directory)
         }
     }
 

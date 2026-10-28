@@ -2,18 +2,24 @@
 
 /* MARK: Shared */
 "Cancel" = "Abbrechen";
+"Check for updates weekly" = "Wöchentlich nach Updates suchen";
 "Copy URL" = "URL kopieren";
+"Demo" = "Demo";
 "Detecting services…" = "Dienste werden erkannt…";
 "Detection paused" = "Erkennung pausiert";
 "Not responding" = "Reagiert nicht";
+"Notch panel" = "Notch-Panel";
 "Open %@" = "%@ öffnen";
+"Open at login" = "Bei der Anmeldung öffnen";
 "Open in browser" = "Im Browser öffnen";
 "Quit %@" = "%@ beenden";
 "Resume" = "Fortsetzen";
+"Starts quietly in the menu bar." = "Startet still in der Menüleiste.";
 "Stop “%@”?" = "„%@“ stoppen?";
 "Stopped" = "Gestoppt";
 "Stopping…" = "Wird gestoppt…";
 "The app is quitting." = "Die App wird gerade beendet.";
+"The login item couldn't be changed." = "Das Anmeldeobjekt konnte nicht geändert werden.";
 
 /* MARK: Sources/PortsApp/ActionsView.swift */
 "COMMAND" = "BEFEHL";
@@ -84,6 +90,7 @@
 "Output of %@" = "Ausgabe von %@";
 
 /* MARK: Sources/PortsApp/MonitorModel.swift */
+"%@ couldn't open the project folder." = "%@ konnte den Projektordner nicht öffnen.";
 "%@ detected" = "%@ erkannt";
 "%@ didn't accept the request to quit." = "%@ hat das Beenden abgelehnt.";
 "%@ is no longer active" = "%@ nicht mehr aktiv";
@@ -99,6 +106,7 @@
 "Terminal wasn't found." = "Terminal wurde nicht gefunden.";
 "The address couldn't be opened." = "Die Adresse konnte nicht geöffnet werden.";
 "The existing file is kept unchanged. %@" = "Die vorhandene Datei bleibt erhalten. %@";
+"The existing settings file can't be read and stays unchanged." = "Die vorhandene Einstellungsdatei kann nicht gelesen werden und bleibt unverändert.";
 "The project folder couldn't be opened." = "Der Projektordner konnte nicht geöffnet werden.";
 "The settings can't be read, so sharing wasn't started." = "Die Einstellungen sind nicht lesbar. Die Freigabe wurde nicht gestartet.";
 
@@ -124,14 +132,49 @@
 "Service ended" = "Dienst beendet";
 "Settings" = "Einstellungen";
 "Settings (⌘,)" = "Einstellungen (⌘,)";
+"Settings – update available (⌘,)" = "Einstellungen – Update verfügbar (⌘,)";
 "detection.paused" = "Pausiert";
 
 /* MARK: Sources/PortsApp/NotchController.swift */
 "Open %@, public share active" = "%@ öffnen, öffentliche Freigabe aktiv";
+"notch.demo" = "Demo";
 
 /* MARK: Sources/PortsApp/OnboardingView.swift */
+"%@ lives in the menu bar. Its panel opens in a window or at the notch." = "%@ lebt in der Menüleiste. Das Panel öffnet sich im Fenster oder an der Notch.";
+"%lld of %lld" = "%lld von %lld";
+"All set." = "Alles bereit.";
+"Always within reach." = "Immer in Reichweite.";
+"Asks GitHub once a week. Nothing else is sent." = "Fragt GitHub einmal pro Woche. Sonst keine Verbindung.";
+"At the top center instead of a window.\nWorks on Macs without a notch." = "Oben in der Mitte statt im Fenster.\nAuch auf Macs ohne Notch.";
+"Back" = "Zurück";
+"Click the icon at the top right." = "Klicke oben rechts auf das Symbol.";
+"Click the icon at the top right.\n%@ opens the window." = "Klicke oben rechts auf das Symbol.\n%@ öffnet das Fenster.";
+"Close introduction" = "Einführung schließen";
+"Close introduction (Esc)" = "Einführung schließen (Esc)";
+"Continue" = "Weiter";
+"Continue Without Saving" = "Ohne Speichern fortfahren";
 "Everything at a glance." = "Alles auf einen Blick.";
+"Finish the introduction and keep your current settings" = "Einführung abschließen und bisherige Einstellungen beibehalten";
+"Get Started" = "Los geht’s";
+"Live detection starts when you open %@" = "Live-Erkennung startet, wenn du %@ öffnest";
+"Previous step" = "Vorheriger Schritt";
+"Ready" = "Bereit";
+"Ready for your first service" = "Bereit für deinen ersten Dienst";
+"Set up" = "Einrichten";
+"Settings couldn't be saved" = "Einstellungen konnten nicht gespeichert werden";
+"Skip" = "Überspringen";
+"Some listeners can't be read right now. The panel has details." = "Ein Teil der Listener ist gerade nicht lesbar. Details findest du im Panel.";
+"Step %lld of %lld: %@" = "Schritt %lld von %lld: %@";
+"Try Again" = "Erneut versuchen";
+"Use a window" = "Fenster verwenden";
 "Use the notch panel" = "Notch-Panel verwenden";
+"View Demo" = "Demo ansehen";
+"Welcome" = "Willkommen";
+"Welcome to %@" = "Willkommen bei %@";
+"Window" = "Fenster";
+"Without saving, your choices apply to this session only. The existing file is kept." = "Ohne Speichern gilt deine Auswahl nur für diese Sitzung. Die vorhandene Datei bleibt erhalten.";
+"You'll find %@ in the menu bar." = "Du findest %@ jetzt in der Menüleiste.";
+"Your agents and dev servers at a glance." = "Deine Agenten und Dev-Server im Blick.";
 
 /* MARK: Sources/PortsApp/PanelError.swift */
 "Couldn't open" = "Öffnen nicht möglich";
@@ -149,9 +192,40 @@
 /* MARK: Sources/PortsApp/PortsApp.swift */
 
 /* MARK: Sources/PortsApp/PreferencesView.swift */
+"%@ (not installed)" = "%@ (nicht installiert)";
+"%@ is up to date." = "%@ ist aktuell.";
+"ACCESS" = "ZUGRIFF";
+"Already in use by another app." = "Wird bereits von einer anderen App verwendet.";
+"Also show services without a recognized development framework." = "Auch Dienste ohne erkanntes Entwicklungs-Framework anzeigen.";
+"Asks GitHub for the latest version once a week. No identifiers are sent." = "Fragt GitHub einmal pro Woche nach der neuesten Version. Es werden keine Kennungen gesendet.";
 "Automatic detection" = "Automatische Erkennung";
-"Notch panel" = "Notch-Panel";
+"Check Now" = "Jetzt suchen";
+"Checking…" = "Wird geprüft…";
+"Custom agents" = "Eigene Agenten";
+"DETECTION" = "ERKENNUNG";
+"Dismiss" = "Ausblenden";
+"Download ↗" = "Laden ↗";
+"Help ↗" = "Hilfe ↗";
+"Interval" = "Intervall";
+"Introduction" = "Einführung";
+"Keyboard shortcut %@" = "Tastenkürzel %@";
+"Last checked %@" = "Zuletzt geprüft %@";
+"Live data" = "Live-Daten";
+"Move the app to the Applications folder first." = "Bewege die App zuerst in den Programme-Ordner.";
+"Only available in the installed app." = "Nur in der installierten App verfügbar.";
+"Open Login Items…" = "Anmeldeobjekte öffnen…";
 "Opens %@ at the top of the screen instead of in a window." = "Öffnet %@ oben am Bildschirmrand statt im Fenster.";
+"Opens a new window in the project folder. It can't attach to a running session." = "Öffnet ein neues Fenster im Projektordner. Laufende Sitzungen können nicht übernommen werden.";
+"Opens and closes %@ from any app." = "Öffnet und schließt %@ aus jeder App.";
+"Privacy ↗" = "Datenschutz ↗";
+"Show all TCP listeners" = "Alle TCP-Listener anzeigen";
+"TERMINAL" = "TERMINAL";
+"Terminal app" = "Terminal-App";
+"The update check failed. Please try again later." = "Die Update-Prüfung ist fehlgeschlagen. Bitte versuche es später erneut.";
+"UPDATES" = "UPDATES";
+"Version %@ is available." = "Version %@ ist verfügbar.";
+"Waiting for your approval in System Settings." = "Wartet auf deine Freigabe in den Systemeinstellungen.";
+"settings.quit" = "Beenden";
 
 /* MARK: Sources/PortsApp/QuitCoordinator.swift */
 "Active shares end as well." = "Aktive Freigaben werden ebenfalls beendet.";
@@ -170,6 +244,7 @@
 "%@, %@, paused" = "%@, %@, pausiert";
 "%@, %@, running for %@" = "%@, %@, läuft seit %@";
 "Address copied" = "Adresse kopiert";
+"Brings the app to the front." = "Bringt die App in den Vordergrund.";
 "Copy Address" = "Adresse kopieren";
 "Copy Launch Command" = "Startbefehl kopieren";
 "Copy Share Link" = "Freigabelink kopieren";
@@ -180,7 +255,9 @@
 "New Action in This Folder…" = "Neue Aktion in diesem Ordner…";
 "Open App" = "App öffnen";
 "Open app" = "App öffnen";
+"Open in %@" = "In %@ öffnen";
 "Open in Browser" = "Im Browser öffnen";
+"Opens a new window in the project folder." = "Öffnet ein neues Fenster im Projektordner.";
 "PID %@" = "PID %@";
 "Pause" = "Pausieren";
 "Quit “%@”?" = "„%@“ beenden?";

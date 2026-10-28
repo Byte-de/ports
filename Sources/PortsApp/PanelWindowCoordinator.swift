@@ -40,6 +40,13 @@ final class PanelWindowCoordinator: NSObject {
         if wasExpanded && presentation.active == .window { showWindow() }
     }
 
+    /// Runs at launch and when the setting changes. The shortcut acts like a click on the status item, from any app.
+    func configureShortcut(model: MonitorModel) {
+        GlobalShortcut.shared.update(enabled: model.preferences.opensWithGlobalShortcut) { [weak self] in
+            self?.toggleHome()
+        }
+    }
+
     /// Shows the panel where it lives: the expanded notch while the notch is enabled, otherwise the window at its
     /// last position.
     func showHome() {

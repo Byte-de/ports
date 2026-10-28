@@ -20,6 +20,7 @@ final class MainPanelController: NSObject {
 
     /// `anchorScreen` is the screen that holds the status item, where the window first appears.
     init(model: MonitorModel, anchorScreen: @escaping () -> NSScreen?) {
+        // Never miniaturizable: no Dock to restore a minimized window from.
         let window = MainPanelWindow(
             contentRect: NSRect(x: 0, y: 0, width: 504, height: 362),
             styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)

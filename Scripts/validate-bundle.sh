@@ -41,4 +41,14 @@ localizations=$(/usr/bin/plutil -extract CFBundleLocalizations json -o - "$info"
 for language in en de; do
   [[ "$localizations" == *"\"$language\""* ]] || fail "CFBundleLocalizations does not contain $language"
 done
+# A menu bar app: no Dock icon and no ⌘-Tab entry. Read as XML, so the string "true" does not pass for the boolean.
+ui_element=$(/usr/bin/plutil -extract LSUIElement xml1 -o - "$info" 2>/dev/null) || ui_element=''
+[[ "$ui_element" == *'<true/>'* ]] || fail 'LSUIElement is not the boolean true'
+category=$(/usr/bin/plutil -extract LSApplicationCategoryType raw -o - "$info" 2>/dev/null) || category=''
+[[ "$category" == public.app-category.developer-tools ]] ||
+  fail "LSApplicationCategoryType is '$category', expected 'public.app-category.developer-tools'"
+# Logout must reach applicationShouldTerminate, so the quit flow can stop launched jobs first.
+for key in NSSupportsSuddenTermination NSSupportsAutomaticTermination; do
+  if /usr/bin/plutil -extract "$key" raw -o - "$info" >/dev/null 2>&1; then fail "$key must not be set"; fi
+done
 printf 'Validated bundle: %s\n' "$app"
