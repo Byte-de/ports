@@ -5,7 +5,9 @@
 Public versions start at **1.0.0**. `Resources/Info.plist` is the app's version
 source. Increment its short version for the release and its integer build number
 for every distributed build. Match the changelog, Git tag, website version and
-Homebrew cask. Do not expose prototype build versions as public releases.
+Homebrew cask. Do not expose prototype build versions as public releases. The
+first public release stays 1.0.0 until it is published; each release candidate
+gets the next build number instead (build 3 is the current one).
 
 The distribution target is macOS 26+, arm64. A change to supported platforms must
 be validated on real hardware before expanding that claim.
@@ -32,11 +34,14 @@ SIGN_IDENTITY='Developer ID Application: YOUR ORGANISATION (TEAMID)' \
 NOTARY_PROFILE=BYTE_NOTARY Scripts/release.sh /tmp/ports-release
 ```
 
-The script checks credentials, tests, builds, signs all executables with Hardened
-Runtime and timestamps, notarizes/staples the app, creates a drag-to-Applications
-DMG, then signs/notarizes/staples and assesses the DMG. Only successful results are
-copied to the destination. `SHA256SUMS` authenticates file integrity when compared
-to the trusted release page; it is not a substitute for Developer ID verification.
+The script checks credentials, runs `Scripts/lint.sh` and `Scripts/check.sh`,
+builds, signs all executables with Hardened Runtime and timestamps, validates the
+bundle contract (`Scripts/validate-bundle.sh`), smoke-launches the app (this needs
+a GUI login session), notarizes/staples the app and validates it again, creates a
+drag-to-Applications DMG, then signs/notarizes/staples and assesses the DMG. Only
+successful results are copied to the destination. `SHA256SUMS` authenticates file
+integrity when compared to the trusted release page; it is not a substitute for
+Developer ID verification.
 
 Before publishing, mount the DMG read-only, copy the app to an empty test location,
 run `codesign --verify --deep --strict`, `spctl --assess --type execute`, and
@@ -46,7 +51,12 @@ Do not remove quarantine attributes or disable Gatekeeper.
 
 ## Publish
 
-1. Complete the verification matrix and commit the final source with a clean tree.
+1. Complete the verification matrix in [VERIFICATION.md](VERIFICATION.md), including
+   a green "Check bundled cloudflared" workflow, and commit the final source with a
+   clean tree. In that commit, remove `(unreleased)` from the version's CHANGELOG
+   heading: the release workflow publishes `CHANGELOG.md` as the release notes as
+   it stands. When a release changes what the app sends over the network, update
+   the website's privacy notice before publishing.
 2. Tag that exact commit `vX.Y.Z` and push the tag.
 3. Run the Release workflow for the tag, or upload locally verified assets with
    `gh release create --verify-tag --notes-file`.

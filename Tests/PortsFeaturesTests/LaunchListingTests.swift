@@ -55,6 +55,23 @@ struct LaunchListingTests {
         #expect(rows.saved.first?.job?.configuration.name == "API")
     }
 
+    @Test func restartReplacesPredecessorRow() {
+        let first = job(api, createdAt: 1)
+        let restarted = LaunchRecord(
+            id: api.id, runID: UUID(), configuration: api, identity: nil, createdAt: first.createdAt,
+            startedAt: Date(timeIntervalSince1970: 5), runCount: 2, state: .running, exitCode: nil)
+        let newer = job(web, createdAt: 3)
+        let saved = LaunchListing.rows(saved: [api], jobs: [restarted])
+        #expect(saved.saved.map(\.job) == [restarted])
+        #expect(saved.oneOff.isEmpty)
+        // A restarted one-off keeps its row and its place from the first start.
+        let oneOff = LaunchListing.rows(saved: [], jobs: [restarted, newer]).oneOff
+        #expect(oneOff.map(\.id) == [web.id, api.id])
+        #expect(oneOff.last?.job == restarted)
+        // Whatever the user confirmed for the predecessor no longer applies.
+        #expect(!LaunchListing.isLive(first, in: [restarted, newer]))
+    }
+
     @Test func transitionsReportRunsThatEndedOnTheirOwn() {
         let finished = job(api, .finished, exit: 0)
         let failed = job(web, .failed, exit: 1)

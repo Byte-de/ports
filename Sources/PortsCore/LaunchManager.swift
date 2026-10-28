@@ -423,6 +423,10 @@ public actor LaunchManager {
             pipe.fileHandleForReading.readabilityHandler = nil
             pipe.fileHandleForReading.closeFile()
             pipe.fileHandleForWriting.closeFile()
+            let failure = error as NSError
+            PortsLog.launch.error(
+                "Job \(id, privacy: .public) failed to start: \(failure.domain, privacy: .public) \(failure.code, privacy: .public)"
+            )
             throw error
         }
         pipe.fileHandleForWriting.closeFile()

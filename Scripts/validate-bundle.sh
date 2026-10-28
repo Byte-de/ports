@@ -30,8 +30,13 @@ done
 if /usr/bin/grep -l -i -E '<script|<foreignObject|href="(https?:|//)' "$app/Contents/Resources/AgentLogos/"*.svg; then
   fail 'an agent logo contains a script or an external reference'
 fi
-# English is the source language in code; German comes from the packaged tables.
-for table in de.lproj/Localizable.strings de.lproj/Localizable.stringsdict en.lproj/Localizable.stringsdict; do
+# English is the source language in code; German comes from the packaged tables. Besides the tables the app needs,
+# every table in the source tree must be packaged, so a new one cannot be left behind.
+tables=(de.lproj/Localizable.strings de.lproj/Localizable.stringsdict en.lproj/Localizable.stringsdict)
+for source in "$project_root/Resources/Localization/"*.lproj/*.{strings,stringsdict}; do
+  if [[ -f "$source" ]]; then tables+=("${source#"$project_root/Resources/Localization/"}"); fi
+done
+for table in "${tables[@]}"; do
   [[ -f "$app/Contents/Resources/$table" ]] || fail "Contents/Resources/$table is missing"
   /usr/bin/plutil -lint -s "$app/Contents/Resources/$table" || fail "Contents/Resources/$table does not parse"
 done

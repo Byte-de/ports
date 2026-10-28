@@ -36,7 +36,7 @@ struct ServiceListingTests {
     }
 
     @Test(arguments: ServiceFilter.allCases, [false, true])
-    func invariants(filter: ServiceFilter, showsListeners: Bool) {
+    func countsMatchVisibleListForEveryFilter(filter: ServiceFilter, showsListeners: Bool) {
         let universe = ServiceListing.visible(services, filter: .all, search: "", showsListeners: showsListeners)
         let counts = ServiceCounts(universe)
         let expected =
@@ -77,12 +77,35 @@ struct ServiceListingTests {
         #expect(pids(.all, search: "  ", showsListeners: true) == pids(.all, showsListeners: true))
     }
 
+    @Test func listenersSortAfterServersAndAgents() {
+        let scanned = [
+            service(.listener, pid: 1, title: "postgres", directory: "/Users/dev/shop"),
+            service(.server, pid: 2, title: "Vite", directory: "/Users/dev/shop"),
+            service(.listener, pid: 3, title: "redis"),
+            service(.agent, pid: 4, title: "Codex", directory: "/Users/dev/shop"),
+            service(.server, pid: 5, title: "Hugo"),
+        ].sorted(by: ServiceRecord.displayOrder)
+        #expect(scanned.map(\.id.pid) == [4, 2, 5, 1, 3])
+        // The Servers tab keeps that order inside a project and among the services without one.
+        let tab = ServiceListing.groupedByProject(
+            ServiceListing.visible(scanned, filter: .servers, search: "", showsListeners: true))
+        #expect(tab.map(\.id.pid) == [2, 1, 5, 3])
+    }
+
+    @Test func desktopAgentsWithRootDirectoryAreNotGroupedAsProject() {
+        // launchd starts apps in "/". An app's working directory is never a project, even one a server works in.
+        let rooted = desktopApp(pid: 1, title: "Claude", directory: "/")
+        let beside = desktopApp(pid: 2, title: "ChatGPT", directory: "/Users/dev/api")
+        let agent = service(.agent, pid: 3, title: "Codex", directory: "/")
+        let server = service(.server, pid: 4, title: "Vite", directory: "/Users/dev/api")
+        #expect([rooted, beside, agent].allSatisfy { $0.projectDirectory == nil })
+        let grouped = ServiceListing.groupedByProject([rooted, beside, agent, server])
+        #expect(grouped.map(\.id.pid) == [4, 1, 2, 3])
+        #expect(grouped.map(\.projectDirectory) == ["/Users/dev/api", nil, nil, nil])
+    }
+
     @Test func projectsSitTogetherSortedByNameWithUnassignedLast() {
-        let desktop = ServiceRecord(
-            process: ProcessRecord(
-                identity: .init(pid: 6, startSeconds: 100), name: "claude", executable: "/Applications/Claude.app",
-                workingDirectory: "/Users/dev/claude"),
-            kind: .agent, framework: "Agent", isDesktopApplication: true)
+        let desktop = desktopApp(pid: 6, title: "Claude", directory: "/Users/dev/claude")
         let services = [
             service(.server, pid: 1, title: "Vite", directory: "/z/alpha"),
             service(.server, pid: 2, title: "Next.js", directory: "/a/zeta"),
@@ -121,6 +144,16 @@ struct ServiceListingTests {
         // A paused process opens details, whatever it is.
         #expect(action(paused(vite), http: true) == .showDetails)
         #expect(action(paused(claude), activate: true) == .showDetails)
+    }
+
+    /// An agent that is a desktop app, such as Claude.app.
+    private func desktopApp(pid: Int32, title: String, directory: String) -> ServiceRecord {
+        ServiceRecord(
+            process: ProcessRecord(
+                identity: .init(pid: pid, startSeconds: 100), name: title.lowercased(),
+                executable: "/Applications/\(title).app/Contents/MacOS/\(title)", workingDirectory: directory),
+            kind: .agent, provider: AgentProvider(id: title.lowercased(), name: title), framework: "Agent",
+            isDesktopApplication: true)
     }
 
     private func paused(_ service: ServiceRecord) -> ServiceRecord {

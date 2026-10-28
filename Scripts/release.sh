@@ -11,12 +11,16 @@ version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$projec
 # Verify credentials/agreements before a potentially long build.
 /usr/bin/xcrun notarytool history --keychain-profile "$notary_profile" --output-format json >/dev/null
 [[ ! -e "$release_output/Byte-Ports.dmg" ]] || { echo 'Release output already exists; choose an empty destination.' >&2; exit 1; }
+"$project_root/Scripts/lint.sh"
 "$project_root/Scripts/check.sh"
 release_stage=$(mktemp -d "$build_directory/release.XXXXXX")
 trap 'rm -rf "$release_stage"' EXIT
 export PORTS_CONFIGURATION=release
 "$project_root/Scripts/build-app.sh" "$release_stage/Byte Ports.app"
 app="$release_stage/Byte Ports.app"
+"$project_root/Scripts/validate-bundle.sh" "$app"
+# A bundle that cannot launch, for example because a resource is missing, stops here, before notarization.
+"$project_root/Scripts/smoke-app.sh" "$app"
 /usr/bin/ditto -c -k --norsrc --keepParent "$app" "$release_stage/notary.zip"
 notarize() {
   local target="$1" receipt="$2"
@@ -31,6 +35,8 @@ PY
 notarize "$release_stage/notary.zip" "$release_stage/app-notary.json"
 /usr/bin/xcrun stapler staple "$app"
 /usr/bin/xcrun stapler validate "$app"
+# Stapling writes the ticket into the bundle, so the contract is checked again on the app that goes into the DMG.
+"$project_root/Scripts/validate-bundle.sh" "$app"
 /usr/bin/codesign --verify --deep --strict "$app"
 /usr/sbin/spctl --assess --type execute --verbose=2 "$app"
 mkdir "$release_stage/volume"

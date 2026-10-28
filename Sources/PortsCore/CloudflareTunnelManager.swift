@@ -153,10 +153,16 @@ public actor CloudflareTunnelManager {
     }
 
     private func prepareAndLaunch(_ target: TunnelTarget) async throws -> TunnelRecord {
-        guard validateOrigin(target) else { throw TunnelError.serverChanged }
+        guard validateOrigin(target) else {
+            PortsLog.tunnel.info("Share refused for port \(target.id.port, privacy: .public): server changed")
+            throw TunnelError.serverChanged
+        }
         guard FileManager.default.isExecutableFile(atPath: client.path),
             FileManager.default.isExecutableFile(atPath: runner.path)
-        else { throw TunnelError.missingClient }
+        else {
+            PortsLog.tunnel.error("Share refused for port \(target.id.port, privacy: .public): client missing")
+            throw TunnelError.missingClient
+        }
         let generation = stopGeneration
         let verdict = await probeOrigin(target.origin)
         PortsLog.tunnel.info(
@@ -215,6 +221,10 @@ public actor CloudflareTunnelManager {
             try? input.fileHandleForReading.close()
             try? input.fileHandleForWriting.close()
             try? FileManager.default.removeItem(at: directory)
+            let failure = error as NSError
+            PortsLog.tunnel.error(
+                "Share client for port \(target.id.port, privacy: .public) failed to start: \(failure.domain, privacy: .public) \(failure.code, privacy: .public)"
+            )
             throw error
         }
         try? input.fileHandleForReading.close()
@@ -365,6 +375,7 @@ public actor CloudflareTunnelManager {
             }
             try await Task.sleep(for: .milliseconds(50))
         }
+        PortsLog.tunnel.error("Share \(job.record.sessionID, privacy: .public) client still running after the stop")
         throw TunnelError.couldNotStop
     }
 }

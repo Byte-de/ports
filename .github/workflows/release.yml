@@ -31,6 +31,8 @@ jobs:
           set -euo pipefail
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
           test "$RELEASE_TAG" = "v$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)"
+          # The build number is an integer that grows with every distributed build.
+          [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)" =~ ^[1-9][0-9]*$ ]]
           test -n "$CERT" && test -n "$CERT_PASSWORD" && test -n "$API_KEY" && test -n "$KEY_ID" && test -n "$ISSUER_ID"
       - name: Configure temporary signing keychain
         env:

@@ -19,3 +19,6 @@ jobs:
         run: Scripts/build-app.sh "$RUNNER_TEMP/Byte Ports.app"
       - name: Validate bundle
         run: Scripts/validate-bundle.sh "$RUNNER_TEMP/Byte Ports.app"
+      # Runners without a GUI login session skip with a notice; release.sh requires the launch.
+      - name: Smoke-launch app
+        run: Scripts/smoke-app.sh --skip-without-gui "$RUNNER_TEMP/Byte Ports.app"

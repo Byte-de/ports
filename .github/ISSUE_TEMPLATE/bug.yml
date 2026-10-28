@@ -5,7 +5,17 @@ body:
     id: version
     attributes:
       label: Byte Ports and macOS versions
-      placeholder: Byte Ports 1.0.0 · macOS 26.x · Apple M-series
+      description: Settings shows the app version; Finder's Get Info on Byte Ports.app adds the build in brackets.
+      placeholder: Byte Ports 1.0.0 (3) · macOS 26.x · Apple M-series
+    validations:
+      required: true
+  - type: dropdown
+    id: language
+    attributes:
+      label: App language
+      options:
+        - English
+        - German
     validations:
       required: true
   - type: textarea
@@ -19,4 +29,10 @@ body:
     id: context
     attributes:
       label: Relevant context
-      description: Menu bar, window or notch? External display? Reduced motion? Optional redacted screenshot.
+      description: Window or notch panel? External display? Reduced motion? Optional redacted screenshot.
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: "Optional. The output of `log show --predicate 'subsystem == \"de.byte.ports\"' --last 1h --info` right after the problem. Private values already appear as `<private>`; redact anything else before posting."
+      render: text

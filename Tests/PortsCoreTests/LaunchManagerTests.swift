@@ -146,6 +146,25 @@ struct LaunchManagerTests {
         try await manager.stop(running)
     }
 
+    @Test func historyBoundedAt30() async throws {
+        let manager = hermeticManager()
+        let oldest = try await manager.start(.init(name: "Oldest", command: "exec sleep 30", directory: "/tmp"))
+        var ended: [UUID] = []
+        for index in 0..<31 {
+            let id = try await manager.start(.init(name: "Run \(index)", command: "true", directory: "/tmp"))
+            _ = try await settled(id, in: manager)
+            ended.append(id)
+        }
+        // A start drops the oldest ended slots beyond 30. A slot whose job is alive stays, however old.
+        let newest = try await manager.start(.init(name: "Newest", command: "exec sleep 30", directory: "/tmp"))
+        let kept: [UUID] = [newest] + ended.dropFirst().reversed() + [oldest]
+        #expect(await manager.records().map(\.id) == kept)
+        for id in [oldest, newest] {
+            try await waitForRoot("sleep", of: id, in: manager)
+            try await manager.stop(id)
+        }
+    }
+
     @Test func changesYieldsOnExit() async throws {
         let manager = hermeticManager()
         let id = try await manager.start(.init(name: "Exits", command: "exit 3", directory: "/tmp"))

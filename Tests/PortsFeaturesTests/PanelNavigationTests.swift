@@ -32,7 +32,15 @@ struct PanelNavigationTests {
         #expect(!navigation.isAtRoot)
     }
 
-    @Test func backReturnsToOrigin() {
+    @Test func backFromActivityReturnsToOrigin() {
+        var fromTab = navigation(.agents, pushing: [.activity])
+        fromTab.pop()
+        #expect(fromTab == PanelNavigation(tab: .agents))
+        var fromDetails = navigation(.servers, pushing: [server, .activity])
+        fromDetails.pop()
+        #expect(fromDetails.top == server)
+        #expect(fromDetails.tab == .servers)
+
         var navigation = navigation(.agents, pushing: [.activity, .settings])
         navigation.pop()
         #expect(navigation.top == .activity)
