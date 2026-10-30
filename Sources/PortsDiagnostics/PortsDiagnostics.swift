@@ -272,7 +272,10 @@ struct PortsDiagnostics {
             }
             var reached = false
             var lastFailure = "No response"
-            for _ in 0..<15 {
+            // A resolver that looked the new hostname up before Cloudflare published it, such as Tailscale's
+            // MagicDNS, keeps answering "not found" for up to about a minute.
+            let deadline = ContinuousClock.now + .seconds(90)
+            while ContinuousClock.now < deadline {
                 do {
                     let (data, response) = try await session.data(from: publicURL)
                     let code = (response as? HTTPURLResponse)?.statusCode ?? 0

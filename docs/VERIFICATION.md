@@ -75,7 +75,7 @@ Local runs use the release commit on the host above. CI runs the same scripts on
   notice. Blocked by 5.4.
 - [ ] **1.6 Bundled cloudflared.** The "Check bundled cloudflared" workflow is green for the pinned version. Blocked by
   5.5.
-- [ ] **1.7 Live tunnel.** With network access, `ports-diagnostics --tunnel-integration "/tmp/ports-rc/Byte Ports.app"`
+- [x] **1.7 Live tunnel.** With network access, `ports-diagnostics --tunnel-integration "/tmp/ports-rc/Byte Ports.app"`
   serves a temporary localhost server through the generated public HTTPS URL with the bundled client and supervisor,
   and closing the owner pipe stops the tunnel. No user project or file is exposed. [B5c]
 
@@ -514,7 +514,7 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 1.4 Smoke launch | Christian (maintainer) | pass | `Scripts/smoke-app.sh` on the signed release bundle before notarization (`Scripts/release.sh`); the app copied out of the mounted DMG also ran 6 s with `--demo` and an empty state directory without faults | 30 Oct 2026 |
 | 1.5 CI on the release commit | Christian (maintainer) | blocked: 5.4 | | |
 | 1.6 Bundled cloudflared | Christian (maintainer) | blocked: 5.5 | | |
-| 1.7 Live tunnel | Christian (maintainer) | open | | |
+| 1.7 Live tunnel | Christian (maintainer) | pass | `ports-diagnostics --tunnel-integration` with the bundled cloudflared 2026.10.5: PASS (real client, connected status, public HTTPS fixture, share revoked, local server preserved, cleanup). The public request now retries for 90 s, because Tailscale's MagicDNS on this host first cached the new hostname as missing; a fetch through 1.1.1.1 returned HTTP 200 right away | 30 Oct 2026 |
 | 2.1 Menu bar app and login launch | Christian (maintainer) | open | | |
 | 2.2 Both languages | Christian (maintainer) | open | | |
 | 2.3 Discovery and navigation | Christian (maintainer) | open | | |
