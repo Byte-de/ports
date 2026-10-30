@@ -73,7 +73,7 @@ Local runs use the release commit on the host above. CI runs the same scripts on
 - [x] **1.5 CI on the release commit.** The Check workflow passes lint, check, the release build, bundle validation
   and the smoke launch. Record the run id and whether the smoke step printed "Smoke-launched app" or the no-GUI
   notice. Blocked by 5.4.
-- [ ] **1.6 Bundled cloudflared.** The "Check bundled cloudflared" workflow is green for the pinned version. Blocked by
+- [x] **1.6 Bundled cloudflared.** The "Check bundled cloudflared" workflow is green for the pinned version. Blocked by
   5.5.
 - [x] **1.7 Live tunnel.** With network access, `ports-diagnostics --tunnel-integration "/tmp/ports-rc/Byte Ports.app"`
   serves a temporary localhost server through the generated public HTTPS URL with the bundled client and supervisor,
@@ -376,7 +376,7 @@ As `PanelMotion`, `DirectionalStage`, `MonitorPanel` and `NotchController` defin
 - [ ] **2.11.2** Settings has the groups DETECTION, ACCESS, TERMINAL and UPDATES, and a footer with Introduction ·
   Demo · Help ↗ · Privacy ↗, then "Byte Ports 1.0.0" and Quit. [U4]
 - [ ] **2.11.3** Privacy ↗ resolves: in German to https://ports.byte.de/datenschutz/, whose notice describes the
-  opt-in weekly check (5.8, 5.9); in English to https://github.com/Byte-de/ports#privacy-and-sharing (5.10). Help ↗
+  opt-in weekly check (5.8, 5.9); in English to https://ports.byte.de/privacy/ (5.10). Help ↗
   opens the README. [U4, P2]
 - [ ] **2.11.4** The terminal picker lists Terminal and the installed terminal apps, the others as "(not installed)".
   A CLI agent's details offer "Open in <app>", which opens a new window in the project folder. Check iTerm2, Ghostty
@@ -498,7 +498,7 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 5.7 | 8 h energy traces (4.2, 4.3) | Christian (maintainer) | Needs an otherwise idle Mac for two 8 h runs | Both summaries recorded in §6 |
 | 5.8 | Website deployment and domain | Christian (maintainer), with the Vercel owner | Assigning ports.byte.de returned HTTP 403; redeploying from the private repository fails Vercel's Git-author/team association check; DNS is managed outside Vercel | https://ports.byte.de serves the final source; `released: true` is set only once the download and the tap resolve |
 | 5.9 | Website privacy notice | Christian (maintainer), with the website session (EXT-WEB) | Waits for the EXT-WEB update and 5.8 | The Datenschutz page describes the opt-in weekly update check (off by default, no identifiers, only the time and result of the last check stored on the Mac), the shell environment read on the Mac and the loopback HTTP check before sharing |
-| 5.10 | English privacy link | Christian (maintainer) | The README anchor opens for everyone only once Byte-de/ports is public; there is no English website page yet | https://github.com/Byte-de/ports#privacy-and-sharing opens the section without signing in |
+| 5.10 | English privacy link | Christian (maintainer) | Needs the English website page (5.8) | The English app opens https://ports.byte.de/privacy/ |
 | 5.11 | Homebrew cask | Christian (maintainer, tap maintainer) | Follows publishing; `Scripts/prepare-homebrew.sh` rejects an unnotarized DMG (5.2) | The cask PR to Byte-de/homebrew-tap is merged and `brew install --cask byte-de/tap/byte-ports` installs 1.0.0 |
 | 5.12 | Other hardware | Christian (maintainer) | Needs a Mac without a notch, an external display, and iTerm2, Ghostty and Warp installed | 3.1, 3.3, 3.8 and 2.11.4 recorded on that hardware |
 | 5.13 | Copy review | Christian (maintainer), with a native-level English reviewer | Reviewer availability | The user reviewed the German and the reviewer the English from `Scripts/check-localization.sh --report`, and the fixes landed |
@@ -513,7 +513,7 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 1.3 Bundle contract | Christian (maintainer) | pass | `Scripts/validate-bundle.sh` on the Developer ID release bundle after the build and again after stapling (`Scripts/release.sh`) | 30 Oct 2026 |
 | 1.4 Smoke launch | Christian (maintainer) | pass | `Scripts/smoke-app.sh` on the signed release bundle before notarization (`Scripts/release.sh`); the app copied out of the mounted DMG also ran 6 s with `--demo` and an empty state directory without faults | 30 Oct 2026 |
 | 1.5 CI on the release commit | Christian (maintainer) | pass | Check run 41041844147 on `main` 1369300 (hosted macos-26 arm64): lint, 208 + 86 tests, supervisor and integration, release build, bundle validation, and "Smoke-launched app" (the runner has a GUI session, so `Scripts/release.sh` can smoke-launch in the Release workflow) | 30 Oct 2026 |
-| 1.6 Bundled cloudflared | Christian (maintainer) | blocked: 5.5 | | |
+| 1.6 Bundled cloudflared | Christian (maintainer) | pass | "Check bundled cloudflared" run 41042601708 green for the pin 2026.10.6, the latest upstream release | 30 Oct 2026 |
 | 1.7 Live tunnel | Christian (maintainer) | pass | `ports-diagnostics --tunnel-integration` with the bundled cloudflared 2026.10.5 and again with 2026.10.6: PASS (real client, connected status, public HTTPS fixture, share revoked, local server preserved, cleanup). The public request now retries for 90 s, because Tailscale's MagicDNS on this host first cached the new hostname as missing; a fetch through 1.1.1.1 returned HTTP 200 right away | 30 Oct 2026 |
 | 2.1 Menu bar app and login launch | Christian (maintainer) | open | | |
 | 2.2 Both languages | Christian (maintainer) | open | | |
@@ -542,12 +542,12 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 5.2 Notarization and stapling | Christian (maintainer) | pass | `Scripts/release.sh /tmp/ports-release` exit 0: app `6e5ba454-4e9d-4e5e-837b-640a7f1b8c56` and DMG `fe0093ee-381e-4024-bf3c-ce17beb13468` Accepted, both stapled and validated, `spctl` accepted both as "Notarized Developer ID". The DMG mounted read-only, its app copied to an empty folder passed `codesign --verify --deep --strict`, `spctl --assess --type execute` and `stapler validate`, version 1.0.0 (3). SHA-256 of Byte-Ports.dmg: `5c937606d72bc31cd5d941d05bd50e3ec70ef2efabee0b153880e1041c588d38` | 30 Oct 2026 |
 | 5.3 Release secrets | Christian (maintainer) | blocked: secrets missing | | |
 | 5.4 CI run on the release commit | Christian (maintainer) | pass | See 1.5; the repository is now Byte-de/ports (renamed from Byte-de/relay, which redirects) | 30 Oct 2026 |
-| 5.5 Bundled cloudflared workflow | Christian (maintainer) | blocked: not pushed | | |
+| 5.5 Bundled cloudflared workflow | Christian (maintainer) | pass | See 1.6 | 30 Oct 2026 |
 | 5.6 Quarantined install on a second Mac | Christian (maintainer) | blocked: second Mac | | |
 | 5.7 8 h energy traces | Christian (maintainer) | blocked: idle Mac for 16 h | | |
-| 5.8 Website deployment and domain | Christian (maintainer) | blocked: Vercel HTTP 403 | | |
-| 5.9 Website privacy notice | Christian (maintainer) | blocked: EXT-WEB, 5.8 | | |
-| 5.10 English privacy link | Christian (maintainer) | blocked: repository private | | |
+| 5.8 Website deployment and domain | Christian (maintainer) | pass | ports.byte.de verified through a TXT record at _vercel.byte.de, CNAME to Vercel, HTTPS; production deployment relay-website-2go5d7rxu (pre-release state, `released: false`) | 30 Oct 2026 |
+| 5.9 Website privacy notice | Christian (maintainer) | pass | /datenschutz/ and /privacy/ return 200 and describe the opt-in weekly check, the shell environment and the loopback HTTP check | 30 Oct 2026 |
+| 5.10 English privacy link | Christian (maintainer) | pass | `AppInfo.privacyURL` opens https://ports.byte.de/privacy/ for every language but German | 30 Oct 2026 |
 | 5.11 Homebrew cask | Christian (maintainer) | blocked: release | | |
 | 5.12 Other hardware | Christian (maintainer) | blocked: hardware | | |
 | 5.13 Copy review | Christian (maintainer) | blocked: reviewer | | |

@@ -132,8 +132,9 @@ stores only the time and result of the last check locally. It never downloads or
 installs anything: Download ↗ opens the release page, and you install the update
 yourself.
 
-The website's [privacy notice](https://ports.byte.de/datenschutz/) (in German)
-describes hosting and these network connections.
+The website's privacy notice, in [English](https://ports.byte.de/privacy/) and
+[German](https://ports.byte.de/datenschutz/), describes hosting and these network
+connections.
 
 ### Logging
 
