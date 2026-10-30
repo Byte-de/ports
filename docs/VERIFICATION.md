@@ -10,11 +10,11 @@ results are archived at the end and do not count for build 3.
 | Field | Value |
 | --- | --- |
 | Version | 1.0.0 (build 3) |
-| Commit | open: the release commit, with a clean tree |
-| Host | open: Mac model, chip, memory, macOS version and build, own-process count |
-| Toolchain | open: `swift --version`, the SDK chosen by `Scripts/toolchain.sh`, Xcode or Command Line Tools |
-| Signing | open: Developer ID team, `codesign -dv --verbose=2` summary, notarization submission ids |
-| Date | open |
+| Commit | `fb67d27` on `byte-ports`, clean tree (evidence below added in a later commit that changes only this file) |
+| Host | Mac Studio (Mac14,13), Apple M2 Max, 64 GB, macOS 26.6.2 (25G83), 811 own processes; no built-in notch display |
+| Toolchain | Command Line Tools, Apple Swift 6.4 (swiftlang-6.4.0.34.1), MacOSX26.5.sdk chosen by `Scripts/toolchain.sh` |
+| Signing | Developer ID Application: Nord Ventures GmbH (U2G2QZYSPC), Hardened Runtime, secure timestamp; helpers signed by the same team. Notarization: app `6e5ba454-4e9d-4e5e-837b-640a7f1b8c56`, DMG `fe0093ee-381e-4024-bf3c-ce17beb13468`, both Accepted |
+| Date | 30 October 2026 |
 
 Statuses are `open`, `pass`, `fail: <what failed>` and `blocked: <reason>`. A pass names its evidence: the command
 and its result, a CI run id, or the configuration that was checked and by whom. Finding ids in brackets refer to the
@@ -39,10 +39,10 @@ check its text in both languages (§2.2).
 
 Local runs use the release commit on the host above. CI runs the same scripts on GitHub's macOS 26 runners.
 
-- [ ] **1.1 Static checks.** `Scripts/lint.sh`: strict swift-format, then the log-privacy guard's self-test and its
+- [x] **1.1 Static checks.** `Scripts/lint.sh`: strict swift-format, then the log-privacy guard's self-test and its
   scan of `Sources`. [P3]
   Pre-candidate (28 October 2026, M6 verification, Command Line Tools toolchain): passed.
-- [ ] **1.2 Tests and checks.** `Scripts/check.sh`. Record:
+- [x] **1.2 Tests and checks.** `Scripts/check.sh`. Record:
   - Swift Testing per target: PortsCoreTests _n_ tests in _n_ suites, PortsFeaturesTests _n_ tests in _n_ suites.
   - The 4 C supervisor checks of `Scripts/test-tunnel-runner.py`: control-pipe EOF, unresponsive child, supervisor
     termination and parent crash cleanup.
@@ -57,14 +57,14 @@ Local runs use the release commit on the host above. CI runs the same scripts on
   Pre-candidate (28 October 2026, M6 verification, debug build with the Command Line Tools toolchain): passed;
   PortsCoreTests 208 tests in 25 suites, PortsFeaturesTests 86 tests in 12 suites, the 4 supervisor checks, the
   integration, listener parity over 38 listeners, and the localization check over 342 keys.
-- [ ] **1.3 Bundle contract.** `Scripts/validate-bundle.sh "/tmp/ports-rc/Byte Ports.app"`: version 1.0.0 and build 3
+- [x] **1.3 Bundle contract.** `Scripts/validate-bundle.sh "/tmp/ports-rc/Byte Ports.app"`: version 1.0.0 and build 3
   as in `Resources/Info.plist`, LSUIElement, the developer-tools category, development region `en`, localizations
   `[en, de]` with their lproj tables, signed helpers, inert agent logos, and a log subsystem equal to the bundle id.
   Pre-candidate (28 October 2026, M6.1, ad hoc signed release and debug bundles): passed; copies without `de.lproj` or
   `en.lproj` failed with the original signature (codesign treats lproj folders as optional) and after re-signing, as
   did a bundle lacking a table from the source tree. The M6 verification's ad hoc signed `Scripts/build-app.sh`
   bundle passed it and `codesign --verify --deep --strict`, and its copy without `de.lproj` failed. [P8]
-- [ ] **1.4 Smoke launch.** `Scripts/smoke-app.sh "/tmp/ports-rc/Byte Ports.app"`: the app runs for 5 s in demo mode
+- [x] **1.4 Smoke launch.** `Scripts/smoke-app.sh "/tmp/ports-rc/Byte Ports.app"`: the app runs for 5 s in demo mode
   with a temporary state directory and logs no faults; the panel frame saved in the `de.byte.ports` defaults is put
   back afterwards, or removed if none was saved before. `Scripts/release.sh` runs it without `--skip-without-gui`.
   Pre-candidate (28 October 2026, M6.1): passed; an executable that exits, one that logs a fault, a missing executable
@@ -508,10 +508,10 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 
 | Gate | Owner | Status | Evidence | Date |
 | --- | --- | --- | --- | --- |
-| 1.1 Static checks | Christian (maintainer) | open | | |
-| 1.2 Tests and checks | Christian (maintainer) | open | | |
-| 1.3 Bundle contract | Christian (maintainer) | open | | |
-| 1.4 Smoke launch | Christian (maintainer) | open | | |
+| 1.1 Static checks | Christian (maintainer) | pass | `Scripts/release.sh` ran `Scripts/lint.sh` first on `fb67d27` | 30 Oct 2026 |
+| 1.2 Tests and checks | Christian (maintainer) | pass | `Scripts/check.sh` inside `Scripts/release.sh`: PortsCoreTests 208 tests in 25 suites, PortsFeaturesTests 86 tests in 12 suites, supervisor, integration, listener parity and localization (342 keys) passed | 30 Oct 2026 |
+| 1.3 Bundle contract | Christian (maintainer) | pass | `Scripts/validate-bundle.sh` on the Developer ID release bundle after the build and again after stapling (`Scripts/release.sh`) | 30 Oct 2026 |
+| 1.4 Smoke launch | Christian (maintainer) | pass | `Scripts/smoke-app.sh` on the signed release bundle before notarization (`Scripts/release.sh`); the app copied out of the mounted DMG also ran 6 s with `--demo` and an empty state directory without faults | 30 Oct 2026 |
 | 1.5 CI on the release commit | Christian (maintainer) | blocked: 5.4 | | |
 | 1.6 Bundled cloudflared | Christian (maintainer) | blocked: 5.5 | | |
 | 1.7 Live tunnel | Christian (maintainer) | open | | |
@@ -538,20 +538,20 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 4.2 8 h idle, notch off | Christian (maintainer) | blocked: 5.7 | | |
 | 4.3 8 h idle, compact notch | Christian (maintainer) | blocked: 5.7 | | |
 | 4.4 1 h active | Christian (maintainer) | open | | |
-| 5.1 Apple Developer agreement | Christian (maintainer) | blocked: HTTP 403 | | |
-| 5.2 Notarization and stapling | Christian (maintainer) | blocked: 5.1 | | |
+| 5.1 Apple Developer agreement | Christian (maintainer) | pass | `xcrun notarytool store-credentials BYTE_NOTARY` validated the App Store Connect API key; submissions were accepted | 30 Oct 2026 |
+| 5.2 Notarization and stapling | Christian (maintainer) | pass | `Scripts/release.sh /tmp/ports-release` exit 0: app `6e5ba454-4e9d-4e5e-837b-640a7f1b8c56` and DMG `fe0093ee-381e-4024-bf3c-ce17beb13468` Accepted, both stapled and validated, `spctl` accepted both as "Notarized Developer ID". The DMG mounted read-only, its app copied to an empty folder passed `codesign --verify --deep --strict`, `spctl --assess --type execute` and `stapler validate`, version 1.0.0 (3). SHA-256 of Byte-Ports.dmg: `5c937606d72bc31cd5d941d05bd50e3ec70ef2efabee0b153880e1041c588d38` | 30 Oct 2026 |
 | 5.3 Release secrets | Christian (maintainer) | blocked: secrets missing | | |
 | 5.4 CI run on the release commit | Christian (maintainer) | blocked: not pushed | | |
 | 5.5 Bundled cloudflared workflow | Christian (maintainer) | blocked: not pushed | | |
-| 5.6 Quarantined install on a second Mac | Christian (maintainer) | blocked: 5.2, second Mac | | |
+| 5.6 Quarantined install on a second Mac | Christian (maintainer) | blocked: second Mac | | |
 | 5.7 8 h energy traces | Christian (maintainer) | blocked: idle Mac for 16 h | | |
 | 5.8 Website deployment and domain | Christian (maintainer) | blocked: Vercel HTTP 403 | | |
 | 5.9 Website privacy notice | Christian (maintainer) | blocked: EXT-WEB, 5.8 | | |
 | 5.10 English privacy link | Christian (maintainer) | blocked: repository private | | |
-| 5.11 Homebrew cask | Christian (maintainer) | blocked: 5.2, release | | |
+| 5.11 Homebrew cask | Christian (maintainer) | blocked: release | | |
 | 5.12 Other hardware | Christian (maintainer) | blocked: hardware | | |
 | 5.13 Copy review | Christian (maintainer) | blocked: reviewer | | |
-| 5.14 Published release | Christian (maintainer) | blocked: 5.1–5.4 | | |
+| 5.14 Published release | Christian (maintainer) | blocked: 5.3, 5.4 | | |
 
 ## Finding map
 
