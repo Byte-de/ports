@@ -16,7 +16,7 @@ cask "byte-ports" do
   url "https://github.com/Byte-de/ports/releases/download/v#{version}/Byte-Ports.dmg",
       verified: "github.com/Byte-de/ports/"
   name "Byte Ports"
-  desc "Local dev servers, AI agents, projects and Cloudflare previews"
+  desc "Local dev servers and AI agents in the menu bar, with Cloudflare share links"
   homepage "https://ports.byte.de/"
 
   livecheck do

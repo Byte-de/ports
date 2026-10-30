@@ -1,9 +1,16 @@
 name: Release
+# Every pushed version tag (vX.Y.Z) builds, Developer ID-signs, notarizes and staples Byte Ports, then publishes
+# Byte-Ports.dmg as the latest GitHub release. The website and README download from
+# releases/latest/download/Byte-Ports.dmg, so the asset name stays exactly "Byte-Ports.dmg". Every build needs a
+# fresh notarization; this workflow does it with the repository secrets listed in docs/RELEASING.md.
+# Create the tag with Scripts/tag-release.sh --push.
 on:
+  push:
+    tags: ["v*.*.*"]
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing stable version tag, for example v1.0.0
+        description: Existing version tag to publish, for example v1.0.1
         required: true
         type: string
 permissions:
@@ -15,13 +22,15 @@ jobs:
   release:
     runs-on: macos-26
     environment: release
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ inputs.tag }}
-      - name: Validate tag and signing inputs
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+      - name: Validate tag, notes and signing inputs
         env:
-          RELEASE_TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
           CERT: ${{ secrets.DEVID_CERT_P12_BASE64 }}
           CERT_PASSWORD: ${{ secrets.DEVID_CERT_PASSWORD }}
           API_KEY: ${{ secrets.ASC_API_KEY_P8_BASE64 }}
@@ -29,11 +38,27 @@ jobs:
           ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
           set -euo pipefail
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-          test "$RELEASE_TAG" = "v$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)"
+          # Every check fails explicitly: macOS bash 3.2 ignores a failing [[ ]] or `! command` under `set -e`.
+          fail() { echo "::error::$1" >&2; exit 1; }
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "Release tags look like v1.2.3, not $RELEASE_TAG."
+          version=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
+          [[ "$RELEASE_TAG" == "v$version" ]] || fail "$RELEASE_TAG doesn't match CFBundleShortVersionString $version."
           # The build number is an integer that grows with every distributed build.
-          [[ "$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)" =~ ^[1-9][0-9]*$ ]]
-          test -n "$CERT" && test -n "$CERT_PASSWORD" && test -n "$API_KEY" && test -n "$KEY_ID" && test -n "$ISSUER_ID"
+          build=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' Resources/Info.plist)
+          [[ "$build" =~ ^[1-9][0-9]*$ ]] || fail "CFBundleVersion must be a positive integer, not $build."
+          # The notes are the version's final CHANGELOG section, without its heading.
+          if grep -q "^## $version (unreleased)" CHANGELOG.md; then
+            fail "Remove (unreleased) from the $version CHANGELOG heading before tagging."
+          fi
+          awk -v version="$version" '/^## / { if (found) exit; found = ($2 == version); next } found' \
+            CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || fail "CHANGELOG.md has no '## $version' section."
+          [[ -n "$CERT" && -n "$CERT_PASSWORD" && -n "$API_KEY" && -n "$KEY_ID" && -n "$ISSUER_ID" ]] ||
+            fail "Set the five signing secrets listed in docs/RELEASING.md."
+          # Never replace the bytes of a published version.
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            fail "$RELEASE_TAG is already published; release a new version instead."
+          fi
       - name: Configure temporary signing keychain
         env:
           CERT: ${{ secrets.DEVID_CERT_P12_BASE64 }}
@@ -61,12 +86,13 @@ jobs:
           rm "$RUNNER_TEMP/signing.p12" "$RUNNER_TEMP/notary.p8"
       - name: Build, sign, notarize and staple
         run: Scripts/release.sh "$RUNNER_TEMP/release"
-      - name: Publish verified assets
+      - name: Publish as the latest release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          gh release create "$RELEASE_TAG" --verify-tag --title "Byte Ports ${RELEASE_TAG#v}" --notes-file CHANGELOG.md "$RUNNER_TEMP/release/Byte-Ports.dmg" "$RUNNER_TEMP/release/SHA256SUMS"
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" --verify-tag --latest --title "Byte Ports ${RELEASE_TAG#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md" "$RUNNER_TEMP/release/Byte-Ports.dmg" "$RUNNER_TEMP/release/SHA256SUMS"
       - name: Remove signing material
         if: always()
         run: |

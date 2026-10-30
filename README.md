@@ -54,11 +54,12 @@ German text come with the app bundle.
 
 ## Install
 
-Download the **Byte-Ports.dmg** asset from a published GitHub release and drag
-**Byte Ports.app** into Applications. Public release assets are Developer ID
-signed, notarized and stapled. Do not bypass Gatekeeper to install a build.
+Download [Byte-Ports.dmg](https://github.com/Byte-de/ports/releases/latest/download/Byte-Ports.dmg)
+from the latest release and drag **Byte Ports.app** into Applications. Release
+assets are Developer ID signed, notarized and stapled. Do not bypass Gatekeeper to
+install a build.
 
-Once the 1.0.0 release is published, the Byte Homebrew tap also provides:
+With Homebrew:
 
 ```sh
 brew install --cask byte-de/tap/byte-ports
