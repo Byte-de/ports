@@ -70,7 +70,7 @@ Local runs use the release commit on the host above. CI runs the same scripts on
   Pre-candidate (28 October 2026, M6.1): passed; an executable that exits, one that logs a fault, a missing executable
   and a session without a GUI failed it, and `--skip-without-gui` skipped the last case with a notice. The M6
   verification's bundle passed it, and the saved panel frame was unchanged afterwards. [P8]
-- [ ] **1.5 CI on the release commit.** The Check workflow passes lint, check, the release build, bundle validation
+- [x] **1.5 CI on the release commit.** The Check workflow passes lint, check, the release build, bundle validation
   and the smoke launch. Record the run id and whether the smoke step printed "Smoke-launched app" or the no-GUI
   notice. Blocked by 5.4.
 - [ ] **1.6 Bundled cloudflared.** The "Check bundled cloudflared" workflow is green for the pinned version. Blocked by
@@ -512,9 +512,9 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 1.2 Tests and checks | Christian (maintainer) | pass | `Scripts/check.sh` inside `Scripts/release.sh`: PortsCoreTests 208 tests in 25 suites, PortsFeaturesTests 86 tests in 12 suites, supervisor, integration, listener parity and localization (342 keys) passed | 30 Oct 2026 |
 | 1.3 Bundle contract | Christian (maintainer) | pass | `Scripts/validate-bundle.sh` on the Developer ID release bundle after the build and again after stapling (`Scripts/release.sh`) | 30 Oct 2026 |
 | 1.4 Smoke launch | Christian (maintainer) | pass | `Scripts/smoke-app.sh` on the signed release bundle before notarization (`Scripts/release.sh`); the app copied out of the mounted DMG also ran 6 s with `--demo` and an empty state directory without faults | 30 Oct 2026 |
-| 1.5 CI on the release commit | Christian (maintainer) | blocked: 5.4 | | |
+| 1.5 CI on the release commit | Christian (maintainer) | pass | Check run 41041844147 on `main` 1369300 (hosted macos-26 arm64): lint, 208 + 86 tests, supervisor and integration, release build, bundle validation, and "Smoke-launched app" (the runner has a GUI session, so `Scripts/release.sh` can smoke-launch in the Release workflow) | 30 Oct 2026 |
 | 1.6 Bundled cloudflared | Christian (maintainer) | blocked: 5.5 | | |
-| 1.7 Live tunnel | Christian (maintainer) | pass | `ports-diagnostics --tunnel-integration` with the bundled cloudflared 2026.10.5: PASS (real client, connected status, public HTTPS fixture, share revoked, local server preserved, cleanup). The public request now retries for 90 s, because Tailscale's MagicDNS on this host first cached the new hostname as missing; a fetch through 1.1.1.1 returned HTTP 200 right away | 30 Oct 2026 |
+| 1.7 Live tunnel | Christian (maintainer) | pass | `ports-diagnostics --tunnel-integration` with the bundled cloudflared 2026.10.5 and again with 2026.10.6: PASS (real client, connected status, public HTTPS fixture, share revoked, local server preserved, cleanup). The public request now retries for 90 s, because Tailscale's MagicDNS on this host first cached the new hostname as missing; a fetch through 1.1.1.1 returned HTTP 200 right away | 30 Oct 2026 |
 | 2.1 Menu bar app and login launch | Christian (maintainer) | open | | |
 | 2.2 Both languages | Christian (maintainer) | open | | |
 | 2.3 Discovery and navigation | Christian (maintainer) | open | | |
@@ -541,7 +541,7 @@ Each gate names its owner and what blocks it today. "Done when" is the evidence 
 | 5.1 Apple Developer agreement | Christian (maintainer) | pass | `xcrun notarytool store-credentials BYTE_NOTARY` validated the App Store Connect API key; submissions were accepted | 30 Oct 2026 |
 | 5.2 Notarization and stapling | Christian (maintainer) | pass | `Scripts/release.sh /tmp/ports-release` exit 0: app `6e5ba454-4e9d-4e5e-837b-640a7f1b8c56` and DMG `fe0093ee-381e-4024-bf3c-ce17beb13468` Accepted, both stapled and validated, `spctl` accepted both as "Notarized Developer ID". The DMG mounted read-only, its app copied to an empty folder passed `codesign --verify --deep --strict`, `spctl --assess --type execute` and `stapler validate`, version 1.0.0 (3). SHA-256 of Byte-Ports.dmg: `5c937606d72bc31cd5d941d05bd50e3ec70ef2efabee0b153880e1041c588d38` | 30 Oct 2026 |
 | 5.3 Release secrets | Christian (maintainer) | blocked: secrets missing | | |
-| 5.4 CI run on the release commit | Christian (maintainer) | blocked: not pushed | | |
+| 5.4 CI run on the release commit | Christian (maintainer) | pass | See 1.5; the repository is now Byte-de/ports (renamed from Byte-de/relay, which redirects) | 30 Oct 2026 |
 | 5.5 Bundled cloudflared workflow | Christian (maintainer) | blocked: not pushed | | |
 | 5.6 Quarantined install on a second Mac | Christian (maintainer) | blocked: second Mac | | |
 | 5.7 8 h energy traces | Christian (maintainer) | blocked: idle Mac for 16 h | | |

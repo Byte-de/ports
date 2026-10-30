@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 source "$(dirname "$0")/toolchain.sh"
-version=2026.10.5
+version=2026.10.6
 case "$(uname -m)" in
-  arm64) architecture=arm64; checksum=184c7d4f5f977348243a6d7ca8f6cf6073b9b2746cfe8c1fe15aa59e9a522bf0 ;;
-  x86_64) architecture=amd64; checksum=6699392fed92367808c248c2d90bed66e49bbf66e1b4ee3e4141230f3f7391b3 ;;
+  arm64) architecture=arm64; checksum=ea1e5105d35bbe16cee5b2f7b4742059ada341fbd35938ed827c24b85efa51c8 ;;
+  x86_64) architecture=amd64; checksum=6c04a13835ca5ff29a0c6f58d17d1f3956aad1b7df1631f5b5efbc06269deded ;;
   *) printf 'Unsupported Cloudflare architecture\n' >&2; exit 1 ;;
 esac
 cache="$build_directory/cloudflared-$version-$architecture"
